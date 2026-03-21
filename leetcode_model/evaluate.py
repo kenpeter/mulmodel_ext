@@ -25,7 +25,7 @@ TEST_DATA = "/home/kenpeter/work/data/newfacade_LeetCodeDataset/leetcode_test.js
 MAX_NEW_TOKENS = 256
 TEMPERATURE = 0.8
 TOP_K = 200
-MAX_PROBLEMS = 228  # All test problems
+MAX_PROBLEMS = 30  # Sample for fast eval. Use --full for all 228.
 TIMEOUT_SECONDS = 10
 
 
@@ -153,6 +153,10 @@ def run_tests(code, test_code, entry_point, prompt_code=""):
 
 # ── Main ────────────────────────────────────────────────────────────────
 def main():
+    global MAX_PROBLEMS
+    if "--full" in sys.argv:
+        MAX_PROBLEMS = 228
+
     enc = tiktoken.get_encoding("gpt2")
     model = load_model()
 

@@ -62,6 +62,16 @@ class CausalSelfAttention(nn.Module):
         if HAS_SAGE and not self.training:
             # Sage attention at inference only (in-place ops break torch.compile)
             y = sageattn(q, k, v, is_causal=True)
+            # Check for NaN/Inf — sage int8 quantization can overflow
+            if not torch.isfinite(y).all():
+                y = torch.nn.functional.scaled_dot_product_attention(
+                    q,
+                    k,
+                    v,
+                    attn_mask=None,
+                    dropout_p=0,
+                    is_causal=True,
+                )
         elif self.flash:
             y = torch.nn.functional.scaled_dot_product_attention(
                 q,

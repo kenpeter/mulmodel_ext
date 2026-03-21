@@ -6,4 +6,8 @@ __pycache__/
 out-leetcode/
 *.bin
 *.pkl
-.pt
+*.pt
+heartbeat.txt
+loop_state.json
+hypothesis_analysis.json
+to_human/

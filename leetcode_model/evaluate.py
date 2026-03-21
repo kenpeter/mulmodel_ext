@@ -22,7 +22,7 @@ from model import GPTConfig, GPT
 # ── Config ──────────────────────────────────────────────────────────────
 OUT_DIR = os.path.join(os.path.dirname(__file__), "nanoGPT", "out-leetcode")
 TEST_DATA = "/home/kenpeter/work/data/newfacade_LeetCodeDataset/leetcode_test.jsonl"
-MAX_NEW_TOKENS = 512
+MAX_NEW_TOKENS = 256
 TEMPERATURE = 0.8
 TOP_K = 200
 MAX_PROBLEMS = 228  # All test problems
@@ -59,9 +59,18 @@ def generate(model, prompt_text, enc):
     prompt_tokens = enc.encode_ordinary(prompt_text)
     x = torch.tensor([prompt_tokens], dtype=torch.long, device="cuda")
 
-    # Use model's built-in generate
-    y = model.generate(x, MAX_NEW_TOKENS, temperature=TEMPERATURE, top_k=TOP_K)
-    generated = enc.decode(y[0][len(prompt_tokens) :].tolist())
+    try:
+        # Use model's built-in generate
+        y = model.generate(x, MAX_NEW_TOKENS, temperature=TEMPERATURE, top_k=TOP_K)
+        generated = enc.decode(y[0][len(prompt_tokens) :].tolist())
+    except RuntimeError as e:
+        # Handle CUDA errors from sage attention or NaN/Inf
+        if "device-side assert" in str(e) or "probability tensor" in str(e):
+            return ""
+        raise
+    # Strip <|endoftext|> if model emits it at start
+    if generated.startswith("<|endoftext|>"):
+        generated = generated[len("<|endoftext|>") :]
     return generated
 
 

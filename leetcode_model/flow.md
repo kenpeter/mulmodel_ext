@@ -12,8 +12,6 @@
 
 When stuck or hitting errors, the agent MUST search before guessing.
 
-**Priority order:**
-
 | Priority | Source | Tool | Best for |
 |----------|--------|------|----------|
 | 1 | **arXiv** | `arxiv` python lib | Papers on training, code generation |
@@ -25,46 +23,6 @@ When stuck or hitting errors, the agent MUST search before guessing.
 
 Rule: Never guess. Search arXiv and GitHub first.
 
-## Paper Scout (auto-adapt papers to training)
-
-Every 10 cycles, or when training plateaus, the agent MUST search for papers. Use whatever tools you feel are best:
-
-- `arxiv` python lib — search by topic
-- `websearch` — find papers, blog posts, GitHub repos
-- `webfetch` — read any URL
-- `codesearch` — find implementations
-- `pymupdf` — read PDF papers
-
-2. SCORE relevance (0-10):
-   10 = code generation / LeetCode solving
-   9  = small model training / data efficiency
-   8  = pretraining strategies
-   7  = attention / architecture changes
-   5  = chain-of-thought / reasoning
-   <5 = skip
-
-3. READ the top paper (abstract + key findings)
-
-4. ASK: can we adapt this to our pipeline?
-   - Change model architecture? → modify nanoGPT/model.py
-   - Change training strategy? → modify nanoGPT/config/train_leetcode.py
-   - Change data format? → modify nanoGPT/data/leetcode/prepare.py
-   - Change eval? → modify evaluate.py
-
-5. IMPLEMENT if simple and high-impact
-   - Keep it small (20 lines max per change)
-   - Log what you changed in research-log.md
-   - Log why in findings.md
-
-6. REPEAT — train 5 min → eval → record
-```
-
-Relevant papers already found (log them here):
-- Attention Residuals (Kimi, 2026) — replaces fixed residual connections with learned attention
-- Mixture-of-Depths Attention (2026) — dynamic layer retrieval from all preceding layers
-- The Finetuner's Fallacy (2026) — specialized pretraining beats finetuning-only
-- Mamba-3 (2026) — improved sequence modeling with state space models
-
 ## Ultimate Goal
 
 Model generates Python code for LeetCode problems that:
@@ -73,124 +31,172 @@ Model generates Python code for LeetCode problems that:
 
 Success metric: `pass@1` on `leetcode_test.jsonl` (228 problems).
 Current: 0%.
-Target: as high as possible. >0% = learning. >10% = good. >30% = great.
+Target: >0% = learning. >10% = good. >30% = great.
 
 ## Hardware
 
-- **GPU**: NVIDIA RTX 4070 Ti — 12GB VRAM (~11.6GB usable)
-- **CPU RAM**: 93GB total (~84GB free)
+- **GPU**: NVIDIA RTX 4070 Ti — 12GB VRAM
+- **CPU RAM**: 93GB total
 - **OS**: Linux
 
-Use GPU for training. CPU RAM is plenty for data loading, eval, anything.
+---
 
-## The Loop
+## Architecture: 2-Agent + Watchdog
 
 ```
-LOOP FOREVER. Never stop unless human presses Ctrl+C. No max cycles. No goal check that stops the loop.
-
-repeat forever:
-    1. TRAIN  (~5 min)
-       python nanoGPT/train.py config/train_leetcode.py
-
-    2. EVAL   (run ALL 228 problems)
-       python evaluate.py
-
-    3. RECORD
-       update research-state.md with results
-
-    4. LOG
-       if pass > 0%:  log "model is learning"
-       if pass = 0% after 10 cycles: log "consider changing config"
-
-    5. REPEAT — always repeat, never stop
+leetcode_model/
+├── main.py                         # Entry point — wires agents to project
+├── evaluate.py                     # Eval logic (project-specific)
+├── agents/                         # Generic agent framework
+│   ├── run_loop.py                 # RunLoop class — ReAct executor
+│   ├── hypothesis.py               # HypothesisAgent class — the guide
+│   └── watchdog.py                 # Watchdog class — error recovery
+├── nanoGPT/                        # Training project (unchanged)
+│   ├── train.py
+│   ├── model.py
+│   └── config/train_leetcode.py
+├── flow.md                         # THE SPEC
+├── research-state.md               # Trajectory
+├── findings.md                     # Knowledge
+└── research-log.md                 # Decisions
 ```
 
-Run the loop:
-```bash
-python run_loop.py          # automatic: train → eval → record → repeat
-python run_loop.py --once   # one cycle only
-python run_loop.py --eval   # skip training, just eval
 ```
+┌──────────────────────────────────────┐
+│         main.py                      │
+│  Wires agents to this project.       │
+│  python main.py → watchdog starts    │
+└──────────┬───────────────────────────┘
+           │
+┌──────────▼───────────────────────────┐
+│         watchdog.py (class)          │
+│  Spawns run_loop. Monitors heartbeat.│
+│  Auto-restarts on crash/hang.        │
+└──────────┬───────────────────────────┘
+           │
+┌──────────▼───────────────────────────┐
+│         run_loop.py (class)          │
+│  ReAct: Reason → Train → Eval       │
+│  Writes heartbeat. Every 5 → hypo.  │
+└──────────┬───────────────────────────┘
+           │ every 5 cycles
+┌──────────▼───────────────────────────┐
+│         hypothesis.py (class)        │
+│  Reads results. Decides direction.   │
+└──────────────────────────────────────┘
+```
+
+### agents/ — Generic, Reusable
+
+The `agents/` folder is a **standalone framework**. Copy it to any project.
+
+```python
+# For a new project, just import and configure:
+from agents.run_loop import RunLoop
+from agents.hypothesis import HypothesisAgent
+from agents.watchdog import Watchdog
+
+loop = RunLoop(
+    project_dir="/path/to/project",
+    train_cmd=["python", "train.py"],
+    eval_cmd=["python", "eval.py"],
+    eval_results_path="/path/to/results.json",
+)
+loop.run()
+```
+
+### main.py — Project Entry Point
+
+Wires the generic agents to this LeetCode project. This is the only project-specific file.
+
+```python
+python main.py              # watchdog + loop + hypothesis
+python main.py --run        # loop only
+python main.py --once       # one cycle
+python main.py --eval       # just eval
+```
+
+---
+
+## Error Recovery
+
+| Failure | Detection | Recovery |
+|---------|-----------|----------|
+| Training crashes (OOM, NaN) | Exit code != 0 | Log error, retry next cycle |
+| Eval crashes (CUDA error) | Exit code != 0 | Skip eval, continue training |
+| Agent hangs (no heartbeat) | heartbeat.txt stale >60s | Kill and restart |
+| Agent crashes (exception) | Process dies | Watchdog restarts |
+| GPU OOM | CUDA OOM error | Log, retry next cycle |
+
+Restart policy:
+- Max 5 restarts per rolling hour
+- After 5 → write `to_human/ALERT.md`
+- On restart → resume from last checkpoint
+
+---
 
 ## Files
 
-### Agent CAN read, write, modify, delete
+### Agent CAN modify
 
 | File | What |
 |------|------|
-| `research-state.md` | Project state, results |
-| `findings.md` | What we learned |
-| `research-log.md` | Decisions |
+| `research-state.md` | Project state, results trajectory |
+| `findings.md` | Accumulated knowledge |
+| `research-log.md` | Decision timeline |
+| `loop_state.json` | Current ReAct reasoning |
+| `heartbeat.txt` | Watchdog heartbeat |
+| `hypothesis_analysis.json` | Last hypothesis decision |
 | `nanoGPT/config/train_leetcode.py` | Model size, lr, epochs |
-| `nanoGPT/out-leetcode/*` | Checkpoints, eval results, logs |
+| `nanoGPT/out-leetcode/*` | Checkpoints, eval results |
 | `evaluate.py` | Eval logic |
-| `run_loop.py` | The loop |
-| `autoresearch.log` | Log file |
-| `experiments/*` | Experiment dirs — create as needed |
-| `data/*` | Processed data — create as needed |
-| `src/*` | Shared code — create as needed |
-| `to_human/*` | Reports — create as needed |
-| Any new `.py`, `.md`, `.json`, `.txt`, `.yaml` file in project | New files freely |
+| `main.py` | Project entry point |
+| `autoresearch.log` | Main log |
+| `watchdog.log` | Watchdog log |
 
 ### Agent CAN read but NOT modify
 
 | File | Why |
 |------|-----|
-| `nanoGPT/train.py` | Core trainer — read to understand, don't change unless necessary |
-| `nanoGPT/model.py` | GPT architecture — read to understand, don't change unless necessary |
-| `nanoGPT/data/leetcode/prepare.py` | Data pipeline — read to understand, don't change unless necessary |
-| `nanoGPT/sample.py` | Sampling code — read only |
+| `agents/` | Generic framework — don't change unless improving the framework itself |
+| `nanoGPT/train.py` | Core trainer |
+| `nanoGPT/model.py` | GPT architecture |
+| `nanoGPT/data/leetcode/prepare.py` | Data pipeline |
 
-### Agent MUST NOT touch — read or write
+### Agent MUST NOT touch
 
 | File | Why |
 |------|-----|
-| `~/work/data/newfacade_LeetCodeDataset/leetcode_train.jsonl` | Raw training data — never modify |
-| `~/work/data/newfacade_LeetCodeDataset/leetcode_test.jsonl` | Raw test data — never modify |
-| `nanoGPT/.git/*` | Git internals |
-| `nanoGPT/LICENSE` | License file |
+| `~/work/data/newfacade_LeetCodeDataset/leetcode_train.jsonl` | Raw training data |
+| `~/work/data/newfacade_LeetCodeDataset/leetcode_test.jsonl` | Raw test data |
+
+---
 
 ## Training Details
 
 - Framework: nanoGPT (Karpathy)
-- Model: 50M params (6 layers, 6 heads, 384 embd)
+- Model: 32.87M params (6 layers, 6 heads, 384 embd)
 - Tokenizer: GPT-2 BPE (tiktoken)
-- Data: ~2M tokens from LeetCode CoT (train + test JSONL)
-- First run: trains from scratch
-- Later runs: resumes from `nanoGPT/out-leetcode/ckpt.pt`
-- Config sets `init_from = 'resume'` automatically after first checkpoint
+- Data: ~2M tokens from LeetCode CoT
+- Resumes from `nanoGPT/out-leetcode/ckpt.pt` after first run
 
 ## Eval Details
 
-Evaluates on REAL LeetCode problems from `leetcode_test.jsonl` (228 problems):
-
-```
-1.  [Medium] shortest-distance-after-road-addition-queries-i
-2.  [Hard]   shortest-distance-after-road-addition-queries-ii
-3.  [Medium] number-of-subsequences-with-odd-sum
-4.  [Easy]   snake-in-matrix
-5.  [Medium] count-the-number-of-good-nodes
-6.  [Hard]   find-the-count-of-monotonic-pairs-i
-7.  [Hard]   find-the-count-of-monotonic-pairs-ii
-8.  [Medium] construct-string-with-minimum-cost-easy
-9.  [Medium] find-the-power-of-k-size-subarrays-i
-10. [Medium] find-the-power-of-k-size-subarrays-ii
-... 228 total (Easy/Medium/Hard)
-```
-
-Each problem has:
-- `problem_description` — the LeetCode problem statement
-- `starter_code` — class/function skeleton
-- `test` — `check(candidate)` function with assert statements
-- `entry_point` — e.g. `Solution().twoSum`
-- `prompt` — Python imports and helper classes (ListNode, TreeNode, etc.)
-
-For each problem:
+228 real LeetCode problems. For each:
 1. Take `problem_description` as prompt
-2. Model generates code (temperature=0.2, greedy-ish)
-3. Extract code from output (regex for ```python blocks)
-4. Compile check: `compile(code, '<gen>', 'exec')`
-5. Run test: execute code + `check(candidate)` function with all assertions
-6. Timeout: 10 seconds per test
+2. Model generates code (temperature=0.8, top_k=200)
+3. Compile check: `compile(code, '<gen>', 'exec')`
+4. Run test: execute + `check(candidate)` with assertions
+5. Timeout: 10 seconds per test
 
 Results saved to `nanoGPT/out-leetcode/eval_results.json`.
+
+## How to Run
+
+```bash
+python main.py              # full system (watchdog + loop + hypothesis)
+python main.py --run        # loop only, no watchdog
+python main.py --once       # one cycle only
+python main.py --eval-only  # just eval
+python main.py --hypothesis # just hypothesis review
+```

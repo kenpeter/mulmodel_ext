@@ -304,3 +304,19 @@ Yes. The current model was trained on data with zero real EOT tokens. It learned
 - Next hypothesis: H6 (increase model size to 100M) or more training data
 - Keep branch open for further experimentation
 
+
+### [2026-03-21 14:31] Data Preparation
+- newfacade_LeetCodeDataset (JSONL): 2869 examples
+- LeetCode_YT_CC_CoT_Summary (parquet): 17053 examples
+- Total examples: 19922
+- Total tokens: 15,606,624 (15.61M)
+- Train tokens: 14,045,961 | Val tokens: 1,560,663
+
+### [2026-03-21 14:38] Data Preparation
+- newfacade_LeetCodeDataset (JSONL): 2869 examples
+- LeetCode_YT_CC_CoT_Summary (parquet): 17053 examples
+- greengerong_LeetCode (JSONL): 2360 examples
+- LimYeri_LeetCode (parquet): 15716 examples
+- Total examples: 37998
+- Total tokens: 22,842,586 (22.84M)
+- Train tokens: 20,558,327 | Val tokens: 2,284,259

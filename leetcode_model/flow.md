@@ -46,13 +46,47 @@ Target: >0% = learning. >10% = good. >30% = great.
 
 ## Research Loop
 
+Everything is inside the loop. One cycle = one full pass.
+
 ```
-TRAIN → EVAL → REVIEW → SEARCH (arxiv + github)
-  improving? → back to TRAIN (no code changes)
-  worse/stable? → CODE UPDATE → back to TRAIN
+┌─────────────────────────────────────────┐
+│              RESEARCH LOOP              │
+│                                         │
+│  1. TRAIN                               │
+│  2. EVAL                                │
+│  3. REVIEW (review agent)               │
+│  4. SEARCH (research agent)             │
+│  5. CODE UPDATE (code change agent)     │
+│                                         │
+│  improving? → back to 1 (no changes)    │
+│  worse/stable? → 4→5→1                  │
+│  code bloated? → simplify → 1           │
+│                                         │
+│  NEVER STOP                             │
+└─────────────────────────────────────────┘
 ```
 
-Search happens every cycle. Code update only when worse/stable.
+### Loop Steps
+
+| Step | What | Who |
+|------|------|-----|
+| 1. TRAIN | Run training script | main.py / PM |
+| 2. EVAL | Run eval script | main.py / PM |
+| 3. REVIEW | Audit results, check quality | Review agent |
+| 4. SEARCH | Search arxiv + github for fixes | Research agent |
+| 5. CODE UPDATE | Implement fix from research | Code Change agent |
+| 6. SIMPLIFY | Remove bloat if needed | Code Simplify agent |
+
+### When to Skip Steps
+
+| Situation | Skip |
+|-----------|------|
+| Pass rate improving | Skip SEARCH, CODE UPDATE, SIMPLIFY → go straight to TRAIN |
+| Pass rate stable | Run all steps |
+| Pass rate dropped | Run all steps |
+| Code is bloated | Run SIMPLIFY after CODE UPDATE |
+
+Search happens every cycle except when improving. Code update only when worse/stable.
 
 ### Search Protocol
 
@@ -85,7 +119,7 @@ If `research-log.md` has no URLs, research didn't happen.
 
 ### Recovery: Never Stop
 
-The loop MUST continue. When stuck, use this fallback chain:
+The loop NEVER stops. Every cycle has an action. Use this fallback chain:
 
 ```
 Code change failed?
@@ -96,16 +130,16 @@ Code change failed?
   → Research found nothing? → Try data fix (training data format)
   → Data fix requires retrain? → Retrain from scratch
   → Retrain still stuck? → Increase model size
-  → Still stuck? → Write ALERT.md, wait for human
+  → Still stuck? → More training data, different architecture, keep going
+  → ALWAYS have a next action
 ```
 
 Rules:
-- **NEVER stop the loop** after a failed code change
+- **NEVER stop the loop** — no exceptions, no waiting, no alerts
+- **Always have a next action** — if stuck, train more, research again, try something
 - **Always revert** before trying next hypothesis
-- **Always have a next action** — if no hypothesis, research again
-- **Escalate**: eval-only fixes → training data fixes → model size → human
 - **Max retries per hypothesis**: 1 (try once, then move on)
-- **Stuck detection**: same pass rate for 5+ cycles = escalate to next level
+- **Stuck = stale pass rate for 3+ cycles** — escalate to next level, don't stop
 
 ### Branching: Try Different Approaches in Parallel
 

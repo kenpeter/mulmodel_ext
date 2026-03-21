@@ -101,3 +101,6 @@ Model trained 29 cycles (~5 hours). Pass rate: 0%. Compile rate: ~7% (15-16/228)
 - Indentation issue: PERSISTS — model generates mixed 3/4/5 spaces
 - Result: 1/30 compile (3%), 0/30 pass (same as before)
 - **Key insight**: 32M params can't learn Python indentation rules
+
+### 2026-03-21 22:37 — Cycle 1
+- Compile: 4/30 (13%)

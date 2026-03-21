@@ -435,3 +435,7 @@ Yes. The current model was trained on data with zero real EOT tokens. It learned
 1. **Data normalization**: Write a script to normalize all training data to 4-space indentation using `autopep8` or AST parsing BEFORE retraining
 2. **Test SynCode**: Export nanoGPT model to HuggingFace format and test with SynCode's logit processor
 3. **Delimiter experiment**: Convert a subset of training data to use `BEGIN`/`END` instead of indentation, retrain small, evaluate
+
+## 2026-03-21 22:37 — Cycle 1
+- Compile: 4/30 (13%)
+- Pass: 0/30

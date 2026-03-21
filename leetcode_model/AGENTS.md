@@ -1,29 +1,26 @@
 # Project Agents
 
-Read `flow.md` first — it defines the loop and 5-agent team.
+Read `flow.md` first — it defines the loop and 3-agent team.
 
-## 5-Agent Team
+## 3-Agent Team
 
 Each agent is an opencode instance spawned via `task()`.
 
 | Agent | File | Role |
 |-------|------|------|
-| **PM** | `agents/pm.md` | Reads review, assigns tasks, decides next action |
-| **Research** | `agents/research.md` | Searches arxiv + github, logs findings with URLs |
-| **Code Change** | `agents/code_change.md` | Makes one small code change per invocation |
-| **Review** | `agents/review_agent.md` | Audits research, code, eval, and progress quality |
-| **Code Simplify** | `agents/code_simplify.md` | Deletes dead code, removes bloat |
+| **PM** | `agents/pm.md` | Reads eval results, searches arxiv/github, decides what to do |
+| **Code Change** | `agents/code_change.md` | Implements code fixes based on research |
+| **Code Review** | `agents/code_review.md` | Reviews code changes, debates with Code Change agent |
 
 ## Loop
 
 ```
-TRAIN → EVAL → PM reads review → decides:
+TRAIN → EVAL → PM reads results → decides:
   improving? → TRAIN again
-  stale/worse? → PM assigns:
-    → Research (search arxiv+github)
-    → Code Change (implement fix)
-    → Review (audit the change)
-    → Simplify (trim if needed)
+  stale? → PM spawns:
+    → Research (arxiv/github search)
+    → Code Change (implements fix)
+    → Code Review (reviews change, debates with Code Change)
   → TRAIN again
 ```
 
@@ -46,7 +43,7 @@ opencode --prompt "Run python leetcode_model/evaluate.py and review results."
 
 - `flow.md` — THE SPEC. Loop, agents, file permissions.
 - `agents/*.md` — Agent persona prompts
-- `evaluate.py` — Eval on 228 LeetCode problems
+- `evaluate.py` — Eval on 30 LeetCode problems
 - `nanoGPT/train.py` — Core trainer (read-only)
 - `nanoGPT/model.py` — GPT architecture (careful)
 - `nanoGPT/config/train_leetcode.py` — Training config (you CAN modify)

@@ -59,7 +59,9 @@ class CausalSelfAttention(nn.Module):
         q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
 
-        if HAS_SAGE and not self.training:
+        if (
+            False
+        ):  # sage attention disabled — causes dtype assertion errors at inference
             # Sage attention at inference only (in-place ops break torch.compile)
             y = sageattn(q, k, v, is_causal=True)
             # Check for NaN/Inf — sage int8 quantization can overflow

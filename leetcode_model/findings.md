@@ -49,14 +49,19 @@ Model trained 29 cycles (~5 hours). Pass rate: 0%. Compile rate: ~7% (15-16/228)
 
 ## Hypotheses for Next Cycle
 
-| ID | Hypothesis | Expected Impact |
-|----|------------|-----------------|
-| H2 | Lower temperature to 0.2 in eval | Reduce randomness, more deterministic code |
-| H3 | Include `starter_code` in eval prompt | Model knows method signature to generate |
-| H4 | Include method signature in training data | Model learns entry points |
-| H5 | Increase model size (100M params) | More capacity for code patterns |
-| H6 | Filter training data to remove EOT artifacts | Clean data |
-| H7 | Add code-specific data augmentation | More diverse training examples |
+| ID | Hypothesis | Status | Expected Impact |
+|----|------------|--------|-----------------|
+| H2 | Lower temperature to 0.2 in eval | FAILED — too deterministic for 32M model | — |
+| H3 | Include `starter_code` in eval prompt | FAILED — model confused by format it wasn't trained on | — |
+| H4 | Fix training data format (EOT at end, not between) | pending | HIGH |
+| H5 | Include starter_code in training data | pending | HIGH |
+| H6 | Increase model size (100M params) | pending | MEDIUM |
+| H7 | Retrain from scratch with fixed data | pending | HIGH |
+
+### What Does NOT Work (Tested)
+- **autopep8 post-processing** — model generates structurally broken indentation, not PEP8 violations
+- **Temperature 0.2** — too deterministic for a small model still learning
+- **starter_code in eval prompt** — model wasn't trained with this format, adding at inference doesn't help
 
 ## Lessons and Constraints
 
@@ -74,3 +79,25 @@ Model trained 29 cycles (~5 hours). Pass rate: 0%. Compile rate: ~7% (15-16/228)
 - Top error: indentation (166 cases)
 - **Indents >50%** — tokenizer is the bottleneck
 - **Wrong method names** — eval prompt needs starter_code
+
+### Cycle 1 (2026-03-21 12:08)
+- Pass: 0/30, Compile: 3/30
+- Errors: 19 indent, 3 wrong method
+
+### Cycle 1 (2026-03-21 12:15)
+- Pass: 0/30, Compile: 1/30
+- Errors: 25 indent, 1 wrong method
+
+### Cycle 1 (2026-03-21 12:30) — Auto Research Session
+- Tested: autopep8, temp=0.2, top_k=40, starter_code in prompt
+- All changes made things worse or had no effect
+- Baseline: 1/30 compile (3%), 0/30 pass
+- **Key insight**: Inference-time fixes don't work for a 32M from-scratch model. Need DATA fixes.
+
+### Cycle 2 (2026-03-21 14:30) — EOT Fix + Retrain
+- Fixed prepare.py: encode_ordinary→encode, EOT at end of each document
+- Retrained 5000 iters (block_size=512, no grad checkpointing)
+- EOT issue: FIXED — no more `<|endoftext|>` at start of outputs
+- Indentation issue: PERSISTS — model generates mixed 3/4/5 spaces
+- Result: 1/30 compile (3%), 0/30 pass (same as before)
+- **Key insight**: 32M params can't learn Python indentation rules

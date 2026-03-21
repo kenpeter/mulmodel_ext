@@ -23,10 +23,10 @@ gradient_accumulation_steps = 1
 n_layer = 6
 n_head = 6
 n_embd = 384
-block_size = 1024
+block_size = 512
 dropout = 0.1
 bias = False
-use_gradient_checkpointing = True
+use_gradient_checkpointing = False
 
 # ── AdamW optimizer ─────────────────────────────────────────────────────
 learning_rate = 1e-3
@@ -45,4 +45,4 @@ min_lr = 1e-4
 # ── System ──────────────────────────────────────────────────────────────
 device = "cuda"
 dtype = "bfloat16"
-compile = True
+compile = False

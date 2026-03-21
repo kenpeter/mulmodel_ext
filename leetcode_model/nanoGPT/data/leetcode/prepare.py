@@ -38,7 +38,7 @@ def format_problem(rec):
     code = rec.get("completion", "").strip()
     if not desc or not code:
         return None
-    return f"### Problem:\n{desc}\n\n### Solution:\n```python\n{code}\n```\n\n"
+    return f"### Problem:\n{desc}\n\n### Solution:\n```python\n{code}\n```\n\n<|endoftext|>"
 
 
 print("Loading and formatting data...")
@@ -59,13 +59,12 @@ for jsonl_path in [TRAIN_JSONL, TEST_JSONL]:
 
 print(f"Formatted {problem_count} problems")
 
-# Join with EOT token (nanoGPT uses this as document separator)
-full_text = enc.decode([eot]).join(all_text)
+# Join documents (EOT is already at end of each document)
+full_text = "".join(all_text)
 
 # ── Tokenize ────────────────────────────────────────────────────────────
 print("Tokenizing...")
-tokens = enc.encode_ordinary(full_text)
-tokens.append(eot)  # Final EOT
+tokens = enc.encode(full_text, allowed_special={"<|endoftext|>"})
 tokens = np.array(tokens, dtype=np.uint16)
 print(f"Total tokens: {len(tokens):,} ({len(tokens) / 1e6:.2f}M)")
 

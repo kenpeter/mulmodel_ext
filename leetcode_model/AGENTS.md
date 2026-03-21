@@ -1,54 +1,61 @@
 # Project Agents
 
-Read `flow.md` first — it defines the loop, file permissions, and architecture.
+Read `flow.md` first — it defines the loop and 5-agent team.
 
-## Project Goal
+## 5-Agent Team
 
-Train a GPT from scratch on LeetCode data. Eval on real problems: compile + pass test cases.
+Each agent is an opencode instance spawned via `task()`.
 
-## Structure
+| Agent | File | Role |
+|-------|------|------|
+| **PM** | `agents/pm.md` | Reads review, assigns tasks, decides next action |
+| **Research** | `agents/research.md` | Searches arxiv + github, logs findings with URLs |
+| **Code Change** | `agents/code_change.md` | Makes one small code change per invocation |
+| **Review** | `agents/review_agent.md` | Audits research, code, eval, and progress quality |
+| **Code Simplify** | `agents/code_simplify.md` | Deletes dead code, removes bloat |
+
+## Loop
 
 ```
-leetcode_model/
-├── evaluate.py                     # Eval on 228 LeetCode problems
-├── agents/                         # Generic agent framework (reusable)
-│   ├── run_loop.py                 # ReAct executor class
-│   ├── hypothesis.py               # Hypothesis guide class
-│   └── watchdog.py                 # Watchdog safety net class
-├── nanoGPT/                        # Training project (don't restructure)
-│   ├── train.py                    # Core trainer
-│   ├── model.py                    # GPT architecture
-│   └── config/train_leetcode.py    # Training config
-├── flow.md                         # THE SPEC — read this first
-├── research-state.md               # Results trajectory
-├── findings.md                     # Accumulated knowledge
-└── research-log.md                 # Decision timeline
+TRAIN → EVAL → PM reads review → decides:
+  improving? → TRAIN again
+  stale/worse? → PM assigns:
+    → Research (search arxiv+github)
+    → Code Change (implement fix)
+    → Review (audit the change)
+    → Simplify (trim if needed)
+  → TRAIN again
 ```
 
 ## How to Run
 
+PM opencode reads `flow.md` and runs the loop:
+
 ```bash
-python agents/watchdog.py python agents/run_loop.py   # full system
-python agents/run_loop.py          # loop only
-python agents/run_loop.py --once   # one cycle
-python agents/run_loop.py --eval-only  # just eval
-python agents/hypothesis.py . nanoGPT/out-leetcode/eval_results.json  # review
+# Full loop
+opencode --prompt "Read leetcode_model/flow.md. Run the loop."
+
+# One cycle
+opencode --prompt "Read leetcode_model/flow.md. Run ONE cycle."
+
+# Just eval
+opencode --prompt "Run python leetcode_model/evaluate.py and review results."
 ```
 
 ## Key Files
 
-- `flow.md` — THE SPEC. Architecture, loop steps, file permissions.
-- `main.py` — Wires agents to this project. Run this.
-- `agents/run_loop.py` — Generic ReAct executor (class-based, reusable)
-- `agents/hypothesis.py` — Generic hypothesis agent (class-based, reusable)
-- `agents/watchdog.py` — Generic watchdog (class-based, reusable)
-- `evaluate.py` — Eval logic (project-specific)
+- `flow.md` — THE SPEC. Loop, agents, file permissions.
+- `agents/*.md` — Agent persona prompts
+- `evaluate.py` — Eval on 228 LeetCode problems
+- `nanoGPT/train.py` — Core trainer (read-only)
+- `nanoGPT/model.py` — GPT architecture (careful)
 - `nanoGPT/config/train_leetcode.py` — Training config (you CAN modify)
 
 ## Rules
 
 1. Read `flow.md` before doing anything
-2. Run via `main.py`, not agents directly
+2. Spawn agents via `task()` with persona from `agents/*.md`
 3. Respect file permissions in `flow.md`
 4. Update `research-state.md` after every eval
-5. Update `findings.md` after every outer loop reflection
+5. Update `findings.md` after every review
+6. Always log decisions to `research-log.md` with URLs

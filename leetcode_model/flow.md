@@ -8,20 +8,23 @@
 - If you can write it in 20 lines, don't write 200
 - **Always use `conda`** — never use bare `pip` or `python` without conda env
 
-## Search Sources
+## Research Sources
 
-When stuck or hitting errors, the agent MUST search before guessing.
+Only two sources. Everything else is noise.
 
-| Priority | Source | Tool | Best for |
-|----------|--------|------|----------|
-| 1 | **arXiv** | `arxiv` python lib | Papers on training, code generation |
-| 2 | **GitHub** | `websearch` | Issues, repos, error messages, solutions |
-| 3 | **Stack Overflow** | `websearch` | Python errors, training bugs |
-| 4 | **HuggingFace** | `websearch` | Model configs, dataset formats |
-| 5 | **Any URL** | `webfetch` | Read docs, blog posts, papers |
-| 6 | **Code examples** | `codesearch` | How to use a library/API |
+| Source | Tool | Use for |
+|--------|------|---------|
+| **arXiv** | `websearch` query `site:arxiv.org` | Papers on training, architecture, code generation |
+| **GitHub** | `websearch` query `site:github.com` | Issues, repos, implementations, error fixes |
 
-Rule: Never guess. Search arXiv and GitHub first.
+### Verification
+
+Before citing any finding:
+1. **arXiv**: `webfetch` the paper URL — confirm it exists and says what you claim
+2. **GitHub**: `webfetch` the repo/issue URL — confirm the issue/solution is real
+3. **Log it**: Add citation (URL + key claim) to `findings.md` or `research-log.md`
+
+Rule: Never cite without fetching. Never guess a URL.
 
 ## Ultimate Goal
 
@@ -41,79 +44,152 @@ Target: >0% = learning. >10% = good. >30% = great.
 
 ---
 
-## Architecture: 2-Agent + Watchdog
+## Research Loop
+
+```
+TRAIN → EVAL → REVIEW → SEARCH (arxiv + github)
+  improving? → back to TRAIN (no code changes)
+  worse/stable? → CODE UPDATE → back to TRAIN
+```
+
+Search happens every cycle. Code update only when worse/stable.
+
+### Search Protocol
+
+Every cycle after eval:
+1. Read `findings.md` — what failed, what we tried
+2. Search arXiv: `websearch("site:arxiv.org <specific problem>")`
+3. Search GitHub: `websearch("site:github.com <error or technique>")`
+4. Fetch top result with `webfetch` — confirm it's real
+5. Write finding to `research-log.md` with URL citation
+
+### Code Update Rule
+
+**DO NOT update code if:**
+- Pass rate is improving
+- Last code change was <3 cycles ago and showing improvement
+
+**DO update code if:**
+- Pass rate stale for 3+ cycles
+- Pass rate dropped
+- Research found a specific fix with evidence (URL)
+
+### Evidence of Research
+
+Every research action leaves a trail:
+- `research-log.md` — timestamped entry with arxiv/github URL
+- `findings.md` — updated with new knowledge
+- Code diff — the actual change made
+
+If `research-log.md` has no URLs, research didn't happen.
+
+### Recovery: Never Stop
+
+The loop MUST continue. When stuck, use this fallback chain:
+
+```
+Code change failed?
+  → REVERT the change
+  → Log failure in research-log.md
+  → Try next hypothesis from findings.md
+  → No more hypotheses? → Spawn Research agent for new ideas
+  → Research found nothing? → Try data fix (training data format)
+  → Data fix requires retrain? → Retrain from scratch
+  → Retrain still stuck? → Increase model size
+  → Still stuck? → Write ALERT.md, wait for human
+```
+
+Rules:
+- **NEVER stop the loop** after a failed code change
+- **Always revert** before trying next hypothesis
+- **Always have a next action** — if no hypothesis, research again
+- **Escalate**: eval-only fixes → training data fixes → model size → human
+- **Max retries per hypothesis**: 1 (try once, then move on)
+- **Stuck detection**: same pass rate for 5+ cycles = escalate to next level
+
+### Branching: Try Different Approaches in Parallel
+
+Use git branches to test hypotheses without breaking main:
+
+```
+main                    ← stable, always works
+├── fix/autopep8        ← try autopep8 on this branch
+├── fix/temperature     ← try lower temp on this branch
+├── fix/data-eot        ← fix training data EOT format
+├── fix/model-100m      ← try larger model
+```
+
+Rules:
+- Create branch for each hypothesis: `git checkout -b fix/<name>`
+- Test on branch. If fails, delete branch, try next.
+- If works, merge to main.
+- Never test on main directly.
+- Log branch name in research-log.md.
+
+---
+
+## Architecture: 5-Agent Team
 
 ```
 leetcode_model/
-├── main.py                         # Entry point — wires agents to project
+├── main.py                         # Entry point — runs the loop (train+eval+PM)
 ├── evaluate.py                     # Eval logic (project-specific)
-├── agents/                         # Generic agent framework
-│   ├── run_loop.py                 # RunLoop class — ReAct executor
-│   ├── hypothesis.py               # HypothesisAgent class — the guide
-│   └── watchdog.py                 # Watchdog class — error recovery
+├── agents/
+│   ├── pm.md                       # PM persona prompt
+│   ├── research.md                 # Research persona prompt
+│   ├── code_change.md              # Code Change persona prompt
+│   ├── review_agent.md             # Review persona prompt
+│   ├── code_simplify.md            # Code Simplify persona prompt
+│   └── watchdog.py                 # Watchdog — crash recovery
 ├── nanoGPT/                        # Training project (unchanged)
 │   ├── train.py
 │   ├── model.py
 │   └── config/train_leetcode.py
-├── flow.md                         # THE SPEC
+├── flow.md                         # THE SPEC — loop lives here
 ├── research-state.md               # Trajectory
 ├── findings.md                     # Knowledge
 └── research-log.md                 # Decisions
 ```
 
 ```
-┌──────────────────────────────────────┐
-│         main.py                      │
-│  Wires agents to this project.       │
-│  python main.py → watchdog starts    │
-└──────────┬───────────────────────────┘
-           │
-┌──────────▼───────────────────────────┐
-│         watchdog.py (class)          │
-│  Spawns run_loop. Monitors heartbeat.│
-│  Auto-restarts on crash/hang.        │
-└──────────┬───────────────────────────┘
-           │
-┌──────────▼───────────────────────────┐
-│         run_loop.py (class)          │
-│  ReAct: Reason → Train → Eval       │
-│  Writes heartbeat. Every 5 → hypo.  │
-└──────────┬───────────────────────────┘
-           │ every 5 cycles
-┌──────────▼───────────────────────────┐
-│         hypothesis.py (class)        │
-│  Reads results. Decides direction.   │
-└──────────────────────────────────────┘
+                    ┌─────────┐
+                    │   PM    │  ← reads review, assigns tasks
+                    └────┬────┘
+                         │
+          ┌──────────────┼──────────────┐
+          │              │              │
+    ┌─────▼─────┐  ┌─────▼─────┐  ┌────▼──────┐
+    │ Research  │  │Code Change│  │  Review   │
+    │ arxiv/git │  │ fixes     │  │ audits    │
+    └───────────┘  └───────────┘  └───────────┘
+                                       │
+                                  ┌────▼──────┐
+                                  │  Simplify │
+                                  │ trim code │
+                                  └───────────┘
 ```
 
-### agents/ — Generic, Reusable
+### Agents
 
-The `agents/` folder is a **standalone framework**. Copy it to any project.
+| Agent | Role | Persona | Trigger |
+|-------|------|---------|---------|
+| **PM** | Decides next action | Decisive, no-fluff. Reads review. Assigns task to right agent. | Every cycle after eval |
+| **Research** | Finds solutions | Curious, evidence-based. Only uses arxiv + github. Cites URLs. | When results stale/worse |
+| **Code Change** | Implements fixes | Precise, minimal. One change at a time. Explains what and why. | When research finds a fix |
+| **Review** | Audits everything | Critical, thorough. Checks research quality, code quality, eval quality, progress. | Every cycle |
+| **Code Simplify** | Removes bloat | Ruthless. Deletes unused code. Shorter is better. | When code_change adds too much |
 
-```python
-# For a new project, just import and configure:
-from agents.run_loop import RunLoop
-from agents.hypothesis import HypothesisAgent
-from agents.watchdog import Watchdog
+### Flow
 
-loop = RunLoop(
-    project_dir="/path/to/project",
-    train_cmd=["python", "train.py"],
-    eval_cmd=["python", "eval.py"],
-    eval_results_path="/path/to/results.json",
-)
-loop.run()
 ```
-
-### main.py — Project Entry Point
-
-Wires the generic agents to this LeetCode project. This is the only project-specific file.
-
-```python
-python main.py              # watchdog + loop + hypothesis
-python main.py --run        # loop only
-python main.py --once       # one cycle
-python main.py --eval       # just eval
+TRAIN → EVAL → PM reads review → decides:
+  improving? → TRAIN again
+  stale/worse? → PM assigns:
+    → Research (search arxiv+github)
+    → Code Change (implement fix)
+    → Review (audit the change)
+    → Simplify (trim if needed)
+  → TRAIN again
 ```
 
 ---
@@ -143,22 +219,16 @@ Restart policy:
 |------|------|
 | `research-state.md` | Project state, results trajectory |
 | `findings.md` | Accumulated knowledge |
-| `research-log.md` | Decision timeline |
-| `loop_state.json` | Current ReAct reasoning |
-| `heartbeat.txt` | Watchdog heartbeat |
-| `hypothesis_analysis.json` | Last hypothesis decision |
+| `research-log.md` | Decision timeline with URLs |
 | `nanoGPT/config/train_leetcode.py` | Model size, lr, epochs |
 | `nanoGPT/out-leetcode/*` | Checkpoints, eval results |
 | `evaluate.py` | Eval logic |
-| `main.py` | Project entry point |
-| `autoresearch.log` | Main log |
-| `watchdog.log` | Watchdog log |
 
 ### Agent CAN read but NOT modify
 
 | File | Why |
 |------|-----|
-| `agents/` | Generic framework — don't change unless improving the framework itself |
+| `agents/*.md` | Persona prompts — don't change unless improving team |
 | `nanoGPT/train.py` | Core trainer |
 | `nanoGPT/model.py` | GPT architecture |
 | `nanoGPT/data/leetcode/prepare.py` | Data pipeline |
@@ -193,10 +263,15 @@ Results saved to `nanoGPT/out-leetcode/eval_results.json`.
 
 ## How to Run
 
-```bash
-python main.py              # full system (watchdog + loop + hypothesis)
-python main.py --run        # loop only, no watchdog
-python main.py --once       # one cycle only
-python main.py --eval-only  # just eval
-python main.py --hypothesis # just hypothesis review
+PM opencode reads flow.md and runs the loop:
+
+```
+# PM spawns itself, follows flow.md
+opencode --prompt "Read leetcode_model/flow.md. Run the loop: train → eval → review → decide. Spawn agents as needed."
+
+# One cycle only
+opencode --prompt "Read leetcode_model/flow.md. Run ONE cycle: train → eval → review."
+
+# Just eval
+opencode --prompt "Read leetcode_model/flow.md. Run evaluate.py and review results."
 ```

@@ -320,3 +320,118 @@ Yes. The current model was trained on data with zero real EOT tokens. It learned
 - Total examples: 37998
 - Total tokens: 22,842,586 (22.84M)
 - Train tokens: 20,558,327 | Val tokens: 2,284,259
+
+## 2026-03-21 — Research: Python Indentation Fixes for Code Generation Models
+
+### Problem Statement
+32M param GPT trained from scratch on LeetCode data. Generates Python code with mixed 3/4/5 space indentation and wrong nesting. Compile rate stuck at ~20%. Need solutions.
+
+---
+
+### Category 1: Grammar-Guided Decoding (Post-Processing at Inference)
+
+#### 1A. SynCode — Grammar-Augmented Decoding
+- **Source**: https://arxiv.org/abs/2403.01632 — Ugare et al., Mar 2024
+- **Code**: https://github.com/structuredllm/syncode (329 stars, MIT, actively maintained)
+- **URL verified**: arxiv page loads, GitHub repo loads, README confirmed
+- **What it does**: Constrains LLM token generation to only syntactically valid tokens using a DFA mask store derived from the language grammar. Works as a logit processor — plugs into any HuggingFace model's `generate()` call.
+- **Key results on Python indentation**:
+  - CodeGen-350M: 41 indentation errors → 8 (80% reduction)
+  - WizardCoder-1B: 100% indentation error elimination
+  - LLaMA-7B: 100% indentation error elimination
+  - Overall: 96.07% syntax error reduction, including indentation
+- **How it works**: Builds an offline DFA mask store from the Python grammar (Lark EBNF). During generation, at each token step, it filters the LLM's vocabulary to only syntactically valid tokens. Python indentation context-sensitivity is handled by the parser.
+- **Applicability to 32M model**: HIGH. SynCode is a logit processor — it works with ANY HuggingFace model, including small ones. It doesn't modify the model, just filters tokens at generation time. If we can export our nanoGPT model to HuggingFace format, we can use SynCode directly.
+- **Practical note**: SynCode has 10-20% generation overhead. Supports Python, Go, Java, SQL, JSON. Installation: `pip install syncode`.
+
+#### 1B. PICARD / Synchromesh
+- **Source**: Referenced in SynCode paper (arXiv:2403.01632)
+- **What they do**: Incremental detokenization to derive program prefixes for parsing into partial ASTs. PICARD uses an incremental monadic parser; Synchromesh uses a synchronous grammar approach.
+- **Limitation**: Less mature than SynCode for handling Python's context-sensitive indentation. SynCode paper shows these achieve lower syntax correctness than SynCode.
+
+---
+
+### Category 2: Syntax-Aware Tokenization (Training-Time Fix)
+
+#### 2A. ChainCoder — AST-Based Tokenizer + Coarse-to-Fine Generation
+- **Source**: https://arxiv.org/abs/2305.00909 — Zheng et al., ICML 2023
+- **Code**: https://github.com/VITA-Group/ChainCoder (43 stars, MIT)
+- **URL verified**: Both load, paper accepted at ICML 2023
+- **What it does**: Tokenizes Python code using the Abstract Syntax Tree (AST) instead of plain text. Decouples code into syntax-only (S3) and content-only (S4) subsequences. Uses a hierarchical coarse-to-fine generation: first generate layout frame, then fill in details.
+- **Key insight**: Standard BPE tokenizers treat `    ` (4 spaces) as one or multiple regular tokens, giving the model no structural signal about nesting. ChainCoder's AST-based tokenizer explicitly encodes indentation as syntax roles, making nesting a learnable signal.
+- **Applicability to 32M model**: MEDIUM-HIGH. The AST tokenizer approach is model-agnostic — it just changes how code is represented as tokens. However, implementing it requires: (1) a Python AST parser, (2) building a syntax vocabulary from the training data, (3) retraining from scratch. ChainCoder's code is Python 3.8-specific and tied to competitive programming problems.
+- **Practical takeaway for us**: The core idea — parse code into AST, separate syntax from content, generate structure first — is sound. For our 32M model, a simpler version: normalize all training data to consistent 4-space indentation BEFORE tokenization. This eliminates the mixed-space problem at the data level.
+
+#### 2B. InCoder — Whitespace-Preserving Tokenizer
+- **Source**: https://arxiv.org/abs/2204.05999 — Fried et al., ICLR 2023
+- **URL verified**: arxiv loads
+- **What it does**: InCoder uses a hybrid tokenizer that preserves whitespace, indentation, and syntax trees to reduce tokenization errors. Its key innovation is code infilling — training with masked regions moved to the end of files, enabling bidirectional context.
+- **Relevant finding from ShortCoder paper (2601.09703)**: "InCoder's hybrid tokenizer preserves syntax trees and indentation to reduce tokenization errors, enabling more semantically dense code generation."
+- **Applicability**: The tokenizer concept is relevant, but InCoder itself is a 6.7B model — not directly usable for our 32M model. The lesson: whitespace-aware tokenization matters.
+
+#### 2C. GramTrans — LL(1) Grammar Representation
+- **Source**: https://arxiv.org/abs/2510.02887 — Zhang et al., Oct 2025
+- **URL verified**: arxiv loads
+- **What it does**: Transforms code into an LL(1) grammar representation (easier to parse). Key finding: "the easier a representation is to parse, the better performance the model achieves." Tested on StarCoder 1B, DeepSeek-Coder 1.3B, Qwen2.5 1.5B — all improved significantly.
+- **Applicability**: Directly relevant for small models. The conjecture that simpler representations help models generalize applies to our 32M model. Could transform Python code into a more parseable representation before training.
+
+---
+
+### Category 3: Data Augmentation for Code Indentation
+
+#### 3A. ShortCoder — AST-Preserving Simplification Rules
+- **Source**: https://arxiv.org/abs/2601.09703 — Liu et al., Jan 2026
+- **URL verified**: arxiv loads
+- **What it does**: 10 syntax-level simplification rules for Python, derived from AST-preserving transformations. Achieves 18.1% token reduction without functional compromise. Uses a hybrid data synthesis pipeline (rule-based + LLM-guided).
+- **Key relevance for indentation**: The paper shows that AST-preserving transformations can simplify code while keeping it syntactically valid. This means we could augment our training data by:
+  1. Normalizing all indentation to 4 spaces in training data
+  2. Generating augmented examples with consistent indentation
+  3. Using list comprehensions instead of nested loops (shallower indentation)
+
+#### 3B. Whitespace-Sensitive Language Building
+- **Source**: https://arxiv.org/abs/2510.08200 — Hellwig et al., Oct 2025
+- **URL verified**: arxiv loads
+- **What it does**: Pre-processes whitespace-sensitive language artifacts before parsing, replacing indentation with explicit delimiters. Evaluates on simplified Python.
+- **Key idea for us**: Instead of asking the model to learn indentation, we could:
+  1. Convert Python to a delimiter-based representation for training (e.g., `BEGIN`/`END` blocks)
+  2. Convert back to proper Python indentation in post-processing
+  3. This makes the learning problem easier for a small model
+
+#### 3C. What Builds Effective In-Context Examples
+- **Source**: https://arxiv.org/abs/2508.06414 — Li et al., Aug 2025
+- **URL verified**: arxiv loads
+- **Key finding**: Indentation Removal (INR) mutation — removing indentation while preserving token sequence — causes only a 3.4-4.7% drop in GPT-4o-mini performance. This means indentation is LESS important for generation than identifier names.
+- **Implication**: For our small model, fixing indentation in post-processing (autopep8-style) may be more effective than trying to teach the model to generate correct indentation.
+
+---
+
+### Category 4: Post-Processing / Formatting Approaches
+
+#### 4A. Compressed Code — Tokenizer Impact on Indentation Preference
+- **Source**: https://arxiv.org/abs/2601.02563 — Siniaev et al., Jan 2026
+- **URL verified**: arxiv loads
+- **Key finding**: Models inherently develop indentation preferences from training data distribution. Larger models favor 4-space indentation (PEP 8). Smaller models show "overwhelming preference for newlines over any indentation method, suggesting a focus on basic code structure rather than specific formatting."
+- **Implication**: Our 32M model may be too small to learn indentation preferences from data alone. Post-processing is likely necessary regardless of training approach.
+
+#### 4B. LeetCodeDataset — Temporal Splits for Contamination-Free Training
+- **Source**: https://arxiv.org/abs/2504.14655 — Xia et al., Apr 2025
+- **Code**: Available on HuggingFace `newfacade/LeetCodeDataset` and GitHub
+- **URL verified**: arxiv loads, we already use this dataset
+- **Relevance**: We're already using this dataset. The paper shows SFT with only 2.6K model-generated solutions achieves performance comparable to 110K-sample counterparts. For our indentation problem: ensure training data has consistent formatting before SFT.
+
+---
+
+### Recommended Action Plan (Ranked by Feasibility for 32M Model)
+
+| Priority | Approach | Feasibility | Expected Impact |
+|----------|----------|-------------|-----------------|
+| 1 | **Normalize training data indentation to 4 spaces** | HIGH — preprocessing script, no retrain needed initially, but must retrain | Eliminates mixed-space confusion |
+| 2 | **SynCode post-processing at inference** | HIGH — `pip install syncode`, add as logit processor | 80-100% indentation error reduction per paper |
+| 3 | **Replace Python indentation with BEGIN/END delimiters in training data** | MEDIUM — need conversion script, retrain required | Makes problem easier for small model |
+| 4 | **AST-based tokenizer (ChainCoder approach)** | LOW — complex implementation, Python 3.8 specific | Best long-term but high effort |
+| 5 | **Increase model to 100M+** | MEDIUM — needs more VRAM, may require `find_unused_parameters` | Better capacity to learn indentation |
+
+### Immediate Next Steps
+1. **Data normalization**: Write a script to normalize all training data to 4-space indentation using `autopep8` or AST parsing BEFORE retraining
+2. **Test SynCode**: Export nanoGPT model to HuggingFace format and test with SynCode's logit processor
+3. **Delimiter experiment**: Convert a subset of training data to use `BEGIN`/`END` instead of indentation, retrain small, evaluate

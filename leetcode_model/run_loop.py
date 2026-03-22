@@ -84,12 +84,11 @@ def spawn_agent(prompt_file, task_desc):
     """Spawn an opencode instance with opencode run."""
     if not prompt_file.exists():
         log(f"WARNING: {prompt_file} not found")
-        return 1
+        return
 
     log(f"SPAWN: {prompt_file.name} — {task_desc}")
     prompt = prompt_file.read_text()
-    cmd = ["opencode", "run", prompt]
-    return subprocess.run(cmd, timeout=600).returncode
+    subprocess.run(["opencode", "run", prompt], timeout=600)
 
 
 def run_reviewer():
@@ -137,8 +136,11 @@ def one_cycle(cycle):
         log("IMPROVING — keep training, no agents")
     else:
         log("STALE — spawning agents")
-        run_reviewer()
-        run_updater()
+        # Sequential: reviewer must finish before updater reads findings
+        spawn_agent(
+            REVIEWER_PROMPT, "Search arxiv/github, write findings to research-log.md"
+        )
+        spawn_agent(UPDATER_PROMPT, "Read research-log.md, implement ONE code fix")
 
     prev_compile_rate = compile_rate
 
@@ -178,6 +180,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--eval-only", action="store_true")
+    parser.add_argument(
+        "--test-agents", action="store_true", help="Force stale to test agent spawning"
+    )
     args = parser.parse_args()
 
     if args.eval_only:
@@ -187,6 +192,12 @@ if __name__ == "__main__":
             print(
                 f"\n{results.get('passes_tests', 0)}/{results.get('total', 0)} pass, {results.get('compiles', 0)}/{results.get('total', 0)} compile"
             )
+    elif args.test_agents:
+        # Force stale to verify agents spawn
+        prev_compile_rate = 999
+        log("TEST MODE: forcing stale to verify agents spawn")
+        run_reviewer()
+        run_updater()
     elif args.once:
         one_cycle(1)
     else:

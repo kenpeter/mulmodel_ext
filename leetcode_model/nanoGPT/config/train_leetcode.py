@@ -20,9 +20,9 @@ dataset = "leetcode"
 gradient_accumulation_steps = 1
 
 # ── Model ───────────────────────────────────────────────────────────────
-n_layer = 6
-n_head = 6
-n_embd = 384
+n_layer = 10
+n_head = 10
+n_embd = 640
 block_size = 512
 dropout = 0.1
 bias = False
@@ -45,4 +45,4 @@ min_lr = 1e-4
 # ── System ──────────────────────────────────────────────────────────────
 device = "cuda"
 dtype = "bfloat16"
-compile = False
+compile = False  # Disabled for stability

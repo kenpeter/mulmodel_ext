@@ -1,0 +1,307 @@
+{
+  "total": 30,
+  "compiles": 1,
+  "passes_tests": 0,
+  "details": [
+    {
+      "task_id": "shortest-distance-after-road-addition-queries-i",
+      "difficulty": "Medium",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 26)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\nfrom collections import deque\nfrom collections import defaultdict\n\nclass Solution:\n\tdef shortestDistanceAfterQueries(self, n: int, queries: List[List[int]]) -> List[int]:\n\t    graph = collections.defaultdict(list)\n\t    for u, v in queries:\n\t        graph[u].append(v)\n\t        graph[v].append(u)\n\t    \n\t    queue = deque([(0, 0)])\n\t    visited = set()\n\t    ans = []\n\t    while queue:\n\t        cur, dist = queue.popleft()\n\t        if cur == n - 1:\n\t            ans.append(dist)"
+    },
+    {
+      "task_id": "shortest-distance-after-road-addition-queries-ii",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 26)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\nfrom collections import deque\nfrom collections import defaultdict\n\nclass Solution:\n\tdef shortestDistanceAfterQueries(self, n: int, queries: List[List[int]]) -> List[int]:\n\t    graph = collections.defaultdict(list)\n\t    for u, v in queries:\n\t        graph[u].append(v)\n\t        graph[v].append(u)\n\t    \n\t    queue = deque([(0, 0)])\n\t    visited = set()\n\t    ans = []\n\t    while queue:\n\t        cur, dist = queue.popleft()\n\t        if cur == n - 1:\n\t            ans.append(dist)"
+    },
+    {
+      "task_id": "number-of-subsequences-with-odd-sum",
+      "difficulty": "Medium",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 14)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef subsequenceCount(self, nums: List[int]) -> int:\n\t    MOD = 10**9 + 7\n\t    dp = [0] * len(nums)\n\t    dp[0] = 1\n\t    for i in range(1, len(nums)):\n\t        if nums[i] % 2 == 0:\n\t            dp[i] = dp[i-1]\n\t        else:\n\t            dp[i] = (dp[i-1] + dp[i-2]) % MOD\n\t    return dp[-1]\n```"
+    },
+    {
+      "task_id": "snake-in-matrix",
+      "difficulty": "Easy",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 40)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef finalPositionOfSnake(self, n: int, commands: List[str]) -> int:\n\t    # Initialize the snake's starting position\n\t    head = [0, 0]\n\t    \n\t    # Directions for moving\n\t    directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]\n\t    \n\t    # Directions for turning\n\t    turn = {'U': (0, 1), 'R': (1, 0), 'D': (0, -1), 'L': (-1, 0)}\n\t    \n\t    # Directions for moving the snake\n\t    snake = [head]\n\t    \n\t    # Iterate through each command\n\t    for command in comma"
+    },
+    {
+      "task_id": "count-the-number-of-good-nodes",
+      "difficulty": "Medium",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 27)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\nfrom collections import defaultdict\n\nclass Solution:\n\tdef countGoodNodes(self, edges: List[List[int]]) -> int:\n\t    graph = defaultdict(list)\n\t    for u,v in edges:\n\t        graph[u].append(v)\n\t        graph[v].append(u)\n\t    \n\t    ans = 0\n\t    def dfs(node):\n\t        nonlocal ans\n\t        if len(graph[node]) == 1:\n\t            ans += 1\n\t            return\n\t        \n\t        size = 1\n\t        for child in graph[node]:\n\t            size += dfs(child)\n\t        \n\t        if "
+    },
+    {
+      "task_id": "find-the-count-of-monotonic-pairs-i",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 20)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef countOfPairs(self, A):\n\t    \"\"\"\n\t    :type A: List[int]\n\t    :rtype: int\n\t    \"\"\"\n\t    MOD = 10**9 + 7\n\t    n = len(A)\n\t    dp = [0] * n\n\t    for i in range(1, n):\n\t        if A[i] > A[i-1]:\n\t            dp[i] = dp[i-1] + (i-1) * dp[i-2]\n\t        elif A[i] < A[i-1]:\n\t            dp[i] = dp[i-1] + (i-1) * dp[i-3]\n\t        else:\n\t            dp[i] = dp[i-1] + (i-1) * dp[i-4]\n\t    return dp[-1] % MOD\n```"
+    },
+    {
+      "task_id": "find-the-count-of-monotonic-pairs-ii",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 19)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef countOfPairs(self, A):\n\t    \"\"\"\n\t    :type A: List[int]\n\t    :rtype: int\n\t    \"\"\"\n\t    MOD = 10**9 + 7\n\t    n = len(A)\n\t    ans = 0\n\t    for i in range(n):\n\t        for j in range(i+1,n):\n\t            if A[i] <= A[j]:\n\t                ans += (j-i) * (j-i-1)//2\n\t            else:\n\t                ans += (j-i) * (j-i-1)//2\n\t    return ans % MOD\n```"
+    },
+    {
+      "task_id": "construct-string-with-minimum-cost-easy",
+      "difficulty": "Medium",
+      "compiles": false,
+      "compile_error": "unexpected character after line continuation character (<generated>, line 6)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef minimumCost(self, target: str, words: List[str], costs: List[int]) -> int:\n\t    n = len(target)\n\t    dp = [[float(\\'inf\\')] * n for _ in range(n)]\n\t    dp[0][0] = 0\n\t    \n\t    for i in range(1, n):\n\t        for j in range(n):\n\t            if target[i] == words[j]:\n\t                dp[i][j] = min(dp[i-1][j], dp[i-1][j-1] + costs[j])\n\t            else:\n\t                dp[i][j] = min(dp[i-1][j], dp[i-1][j-1])\n\t    \n\t    return dp[-1][-1] if dp[-1][-1] "
+    },
+    {
+      "task_id": "find-the-power-of-k-size-subarrays-i",
+      "difficulty": "Medium",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 13)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef resultsArray(self, nums: List[int], k: int) -> List[int]:\n\t    res = []\n\t    for i in range(len(nums)-k+1):\n\t        max_num = max(nums[i:i+k])\n\t        if max_num == nums[i]:\n\t            res.append(-1)\n\t        else:\n\t            res.append(max_num)\n\t    return res\n```"
+    },
+    {
+      "task_id": "find-the-power-of-k-size-subarrays-ii",
+      "difficulty": "Medium",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 13)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef resultsArray(self, nums: List[int], k: int) -> List[int]:\n\t    res = []\n\t    for i in range(len(nums)-k+1):\n\t        max_num = max(nums[i:i+k])\n\t        if max_num == nums[i]:\n\t            res.append(-1)\n\t        else:\n\t            res.append(max_num)\n\t    return res\n```"
+    },
+    {
+      "task_id": "maximum-value-sum-by-placing-three-rooks-i",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "'(' was never closed (<generated>, line 57)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef maximumValueSum(self, board: List[List[int]]) -> int:\n\t    # get all the rows and columns\n\t    rows = [set() for _ in range(len(board))]\n\t    cols = [set() for _ in range(len(board[0]))]\n\t    \n\t    # get all the positions of rooks\n\t    rooks = []\n\t    for i in range(len(board)):\n\t        for j in range(len(board[0])):\n\t            if board[i][j] != 0:\n\t                rooks.append((i, j))\n\t    \n\t    # get all the positions of non-rooks\n\t    non_rooks"
+    },
+    {
+      "task_id": "maximum-value-sum-by-placing-three-rooks-ii",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 18)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef maximumValueSum(self, board: List[List[int]]) -> int:\n\t    # get all the rows and columns\n\t    rows = [set() for _ in range(len(board))]\n\t    cols = [set() for _ in range(len(board[0]))]\n\t    \n\t    # count the number of rooks in each row and column\n\t    for i in range(len(board)):\n\t        for j in range(len(board[0])):\n\t            if board[i][j] > 0:\n\t                rows[i].add(board[i][j])\n\t                cols[j].add(board[i][j])\n\t    \n\t    # fi"
+    },
+    {
+      "task_id": "count-substrings-that-satisfy-k-constraint-i",
+      "difficulty": "Easy",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 4)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "class Solution:\n\tdef countKConstraintSubstrings(self, s: str, k: int) -> int:\n\t    return sum((i - j + 1) * (k - i + 1) // 2 for i in range(len(s)) for j in range(i + 1, len(s) + 1))\n```"
+    },
+    {
+      "task_id": "maximum-energy-boost-from-two-drinks",
+      "difficulty": "Medium",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 6)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef maxEnergyBoost(self, A: List[int], B: List[int]) -> int:\n\t    return sum(sorted(A) + sorted(B))\n```"
+    },
+    {
+      "task_id": "find-the-largest-palindrome-divisible-by-k",
+      "difficulty": "Hard",
+      "compiles": true,
+      "compile_error": null,
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": "Entry point 'Solution().largestPalindrome' not found",
+      "generated_code": "class Solution:\n\tdef largestPalindrome(self, n: int, k: int) -> str:\n\t    # if n == 1, return \"8\"\n\t    if n == 1:\n\t        return \"8\"\n\t    \n\t    # if n == 2, return \"99\"\n\t    if n == 2:\n\t        return \"99\"\n\t    \n\t    # if n == 3, return \"999\"\n\t    if n == 3:\n\t        return \"999\"\n\t    \n\t    # if n == 4, return \"9999\"\n\t    if n == 4:\n\t        return \"9999\"\n\t    \n\t    # if n == 5, return \"99999\"\n\t    if n == 5:\n\t        return \"99999\"\n\t    \n\t    # if n == 6, return \"999999\"\n\t    if n == 6:\n\t     "
+    },
+    {
+      "task_id": "count-substrings-that-satisfy-k-constraint-ii",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "unexpected character after line continuation character (<generated>, line 10)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef countKConstraintSubstrings(self, s: str, k: int, queries: List[List[int]]) -> List[int]:\n\t    n = len(s)\n\t    ans = []\n\t    for i in range(n):\n\t        cnt = 0\n\t        for j in range(i, n):\n\t            if s[j] == \\'0\\':\n\t                cnt += 1\n\t            else:\n\t                cnt -= 1\n\t            if cnt > k:\n\t                break\n\t        ans.append(cnt + 1)\n\t    return ans\n```"
+    },
+    {
+      "task_id": "final-array-state-after-k-multiplication-operations-i",
+      "difficulty": "Easy",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 6)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef getFinalState(self, nums: List[int], k: int, multiplier: int) -> List[int]:\n\t    return [multiplier * min(nums)] * k\n```"
+    },
+    {
+      "task_id": "count-almost-equal-pairs-i",
+      "difficulty": "Medium",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 6)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef countPairs(self, nums: List[int]) -> int:\n\t    return sum([nums.count(i) for i in set(nums)])\n```"
+    },
+    {
+      "task_id": "final-array-state-after-k-multiplication-operations-ii",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 11)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef getFinalState(self, nums: List[int], k: int, multiplier: int) -> List[int]:\n\t    n = len(nums)\n\t    min_val = min(nums)\n\t    ans = [min_val] * n\n\t    for i in range(n):\n\t        ans[i] = min_val * multiplier\n\t    return [x % (10**9 + 7) for x in ans]\n```"
+    },
+    {
+      "task_id": "count-almost-equal-pairs-ii",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 6)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef countPairs(self, nums: List[int]) -> int:\n\t    return sum([nums.count(i) - nums.count(j) <= 2 for i, j in combinations(nums, 2)])\n```"
+    },
+    {
+      "task_id": "constructing-two-increasing-arrays",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 27)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef minLargest(self, nums1: List[int], nums2: List[int]) -> int:\n\t    n = len(nums1)\n\t    if n == 0:\n\t        return 0\n\t    \n\t    # Find the maximum value in nums1 and nums2\n\t    max_val = max(nums1) if nums1 else max(nums2)\n\t    \n\t    # Create a new array where all elements are either 0 or 1\n\t    res = [0] * n\n\t    for i in range(n):\n\t        if nums1[i] == 0:\n\t            res[i] = 2 * max_val - 1\n\t        elif nums2[i] == 0:\n\t            res[i] = 2 * m"
+    },
+    {
+      "task_id": "find-the-key-of-the-numbers",
+      "difficulty": "Easy",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 4)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "class Solution:\n\tdef generateKey(self, num1: int, num2: int, num3: int) -> int:\n\t    return min(num1, num2, num3)\n```"
+    },
+    {
+      "task_id": "hash-divided-string",
+      "difficulty": "Medium",
+      "compiles": false,
+      "compile_error": "unexpected character after line continuation character (<generated>, line 7)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "class Solution:\n\tdef stringHash(self, s: str, k: int) -> str:\n\t    # Split the string into substrings of length k\n\t    substrings = [s[i:i+k] for i in range(0, len(s), k)]\n\t    \n\t    # Calculate the sum of hash values of characters in each substring\n\t    sums = [sum(ord(char) - ord(\\'a\\') for char in substring) for substring in substrings]\n\t    \n\t    # Find the remainder of the sum when divided by 26\n\t    hashedChar = sums[0] % 26\n\t    \n\t    # Identify the character in the English lowercase alph"
+    },
+    {
+      "task_id": "find-the-count-of-good-integers",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 12)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "class Solution:\n\tdef countGoodIntegers(self, n: int, k: int) -> int:\n\t    def check(x):\n\t        s = str(x)\n\t        return len(s) == n and all(int(d) % k == 0 for d in s)\n\n\t    ans = 0\n\t    for i in range(1, 10**n):\n\t        if check(i):\n\t            ans += 1\n\t    return ans\n```"
+    },
+    {
+      "task_id": "minimum-amount-of-damage-dealt-to-bob",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 6)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef minDamage(self, power: int, damage: List[int], health: List[int]) -> int:\n\t    return sum(max(0, d - p) for d, p in zip(damage, health))\n```"
+    },
+    {
+      "task_id": "check-if-two-chessboard-squares-have-the-same-color",
+      "difficulty": "Easy",
+      "compiles": false,
+      "compile_error": "unexpected character after line continuation character (<generated>, line 3)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "class Solution:\n\tdef checkTwoChessboards(self, coordinate1: str, coordinate2: str) -> bool:\n\t    return (ord(coordinate1[0]) - ord(\\'a\\')) % 2 != (ord(coordinate2[0]) - ord(\\'a\\'))\n```"
+    },
+    {
+      "task_id": "k-th-nearest-obstacle-queries",
+      "difficulty": "Medium",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 26)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\nfrom collections import deque\n\nclass Solution:\n\tdef resultsArray(self, queries: List[List[int]], k: int) -> List[int]:\n\t    ans = []\n\t    for x, y in queries:\n\t        ans.append(self.find(x, y, k))\n\t    return ans\n\n\tdef find(self, x, y, k):\n\t    q = deque([(x, y)])\n\t    seen = set()\n\t    while q:\n\t        x, y = q.popleft()\n\t        if (x, y) in seen:\n\t            continue\n\t        seen.add((x, y))\n\t        if len(seen) > k:\n\t            return -1\n\t        for dx, dy in "
+    },
+    {
+      "task_id": "select-cells-in-grid-with-maximum-score",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 20)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef maxScore(self, grid: List[List[int]]) -> int:\n\t    n = len(grid)\n\t    m = len(grid[0])\n\t    dp = [[0 for _ in range(m)] for _ in range(n)]\n\t    \n\t    # Initialize the first row\n\t    for i in range(m):\n\t        dp[0][i] = grid[0][i]\n\t    \n\t    # Fill the rest of the dp table\n\t    for i in range(1, n):\n\t        for j in range(m):\n\t            if grid[i][j] != grid[i-1][j]:\n\t                dp[i][j] = max(dp[i-1][j], dp[i-1][j-1] + grid[i][j])\n\t    \n\t  "
+    },
+    {
+      "task_id": "maximum-xor-score-subarray-queries",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "invalid syntax (<generated>, line 13)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef maximumSubarrayXor(self, nums: List[int], queries: List[List[int]]) -> List[int]:\n\t    n = len(nums)\n\t    ans = []\n\t    for l, r in queries:\n\t        max_xor = 0\n\t        for i in range(l, r+1):\n\t            max_xor = max(max_xor, nums[i])\n\t        ans.append(max_xor)\n\t    return ans\n```"
+    },
+    {
+      "task_id": "maximum-total-area-occupied-by-pistons",
+      "difficulty": "Hard",
+      "compiles": false,
+      "compile_error": "unexpected character after line continuation character (<generated>, line 8)",
+      "tests_passed": 0,
+      "tests_total": 0,
+      "test_error": null,
+      "generated_code": "from typing import List\n\nclass Solution:\n\tdef maxArea(self, height: int, positions: List[int], directions: str) -> int:\n\t    n = len(positions)\n\t    ans = 0\n\t    for i in range(n):\n\t        if directions[i] == \\'U\\':\n\t            ans += positions[i]\n\t        else:\n\t            ans -= positions[i]\n\t    return ans * ans\n```"
+    }
+  ]
+}

@@ -12,6 +12,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
+import json
+from eval.leetcode_eval import run_leetcode_eval
 
 
 class SimpleLeetCodeDataset(torch.utils.data.Dataset):
@@ -71,6 +73,7 @@ def main():
     max_steps = 15000
     log_every = 10
     save_every = 200
+    eval_every = 1000
     target_hour, target_min = 6, 0
 
     os.makedirs(output_dir, exist_ok=True)
@@ -274,6 +277,34 @@ def main():
                             path,
                         )
                         print(f"  Saved: {path}")
+
+                    if step > 0 and step % eval_every == 0:
+                        print(f"\n{'=' * 50}")
+                        print(f"Running evaluation at step {step}")
+                        print(f"{'=' * 50}")
+                        student.eval()
+                        eval_results = run_leetcode_eval(
+                            model=student,
+                            tokenizer=tokenizer,
+                            device="cuda",
+                            max_new_tokens=256,
+                            num_problems=20,
+                            split="test",
+                            dataset_name="justindal/leetcode-python-dataset",
+                        )
+                        eval_path = os.path.join(
+                            output_dir, f"eval_step_{resume_step + step}.json"
+                        )
+                        save_results = {
+                            k: v for k, v in eval_results.items() if k != "results"
+                        }
+                        with open(eval_path, "w") as f:
+                            json.dump(save_results, f, indent=2)
+                        print(f"  Eval saved: {eval_path}")
+                        print(
+                            f"  Accuracy: {eval_results['passed']}/{eval_results['total']} ({eval_results['accuracy']:.1f}%)"
+                        )
+                        student.train()
 
     except KeyboardInterrupt:
         print("\nInterrupted!")

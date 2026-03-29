@@ -110,13 +110,37 @@ def main():
         p.requires_grad = False
 
     # Build student with KDA
-    print("Building student with KDA...")
-    config = StudentConfig(
-        vocab_size=teacher.model.embed_tokens.weight.shape[0],
-        sage_attention=False,
-        attn_residual=True,
+    # Check for latest checkpoint first
+    start_step = 0
+    ckpt_files = sorted(
+        [
+            f
+            for f in os.listdir(output_dir)
+            if f.startswith("step_") and f.endswith(".pt")
+        ],
+        key=lambda x: int(x[len("step_") : -len(".pt")]),
     )
-    student = StudentModel(config).to(dtype=torch.bfloat16, device="cuda")
+
+    if ckpt_files:
+        latest = ckpt_files[-1]
+        ckpt_path = os.path.join(output_dir, latest)
+        print(f"Loading checkpoint: {latest}")
+        ckpt_data = torch.load(ckpt_path, map_location="cuda")
+        config = StudentConfig(**ckpt_data["config"])
+        student = StudentModel(config).to(dtype=torch.bfloat16, device="cuda")
+        student.load_state_dict(ckpt_data["model"])
+        start_step = ckpt_data.get("step", int(latest[len("step_") : -len(".pt")]))
+        print(f"Resumed from {latest} (step {start_step})")
+    else:
+        print("Building student with KDA (fresh)...")
+        config = StudentConfig(
+            vocab_size=teacher.model.embed_tokens.weight.shape[0],
+            sage_attention=False,
+            attn_residual=True,
+        )
+        student = StudentModel(config).to(dtype=torch.bfloat16, device="cuda")
+        print("No checkpoint found, starting fresh")
+
     student.gradient_checkpointing = True
     student.train()
 
@@ -149,6 +173,7 @@ def main():
 
     # Training
     step = 0
+    resume_step = start_step
     t0 = time.time()
     loss_sum = 0.0
     hard_sum = 0.0
@@ -239,7 +264,7 @@ def main():
                         loss_sum = hard_sum = soft_sum = 0.0
 
                     if step % save_every == 0:
-                        path = os.path.join(output_dir, f"step_{step}.pt")
+                        path = os.path.join(output_dir, f"step_{resume_step + step}.pt")
                         torch.save(
                             {
                                 "step": step,
@@ -255,10 +280,17 @@ def main():
 
     path = os.path.join(output_dir, "final.pt")
     torch.save(
-        {"step": step, "model": student.state_dict(), "config": config.to_dict()}, path
+        {
+            "step": resume_step + step,
+            "model": student.state_dict(),
+            "config": config.to_dict(),
+        },
+        path,
     )
     print(f"\nFinal saved: {path}")
-    print(f"Total: {step} steps in {(time.time() - t0) / 60:.1f} min")
+    print(
+        f"Total: {step} steps this run ({resume_step + step} cumulative) in {(time.time() - t0) / 60:.1f} min"
+    )
 
 
 if __name__ == "__main__":

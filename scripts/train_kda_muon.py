@@ -298,6 +298,10 @@ def main():
                         save_results = {
                             k: v for k, v in eval_results.items() if k != "results"
                         }
+                        save_results["detailed_results"] = [
+                            {k: v for k, v in r.items()}
+                            for r in eval_results["results"]
+                        ]
                         with open(eval_path, "w") as f:
                             json.dump(save_results, f, indent=2)
                         print(f"  Eval saved: {eval_path}")

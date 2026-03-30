@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import signal
 import traceback
+import torch
 from typing import Optional
 from datasets import load_dataset
 
@@ -97,6 +98,7 @@ def run_leetcode_eval(
     num_problems: int = 50,
     split: str = "test",
     dataset_name: str = "justindal/leetcode-python-dataset",
+    start_index: int = 0,
 ) -> dict:
     """Evaluate model on LeetCode problems from the dataset."""
     ds = load_dataset(dataset_name, split=split)
@@ -108,12 +110,14 @@ def run_leetcode_eval(
 
     print(f"\n{'=' * 60}")
     print(
-        f"LeetCode Evaluation — {min(num_problems, len(ds))} problems from '{split}' split"
+        f"LeetCode Evaluation — problems {start_index}-{start_index + num_problems - 1} from '{split}' split"
     )
     print(f"{'=' * 60}\n")
 
     for i, item in enumerate(ds):
-        if i >= num_problems:
+        if i < start_index:
+            continue
+        if i >= start_index + num_problems:
             break
 
         messages = item["messages"]
@@ -132,8 +136,6 @@ def run_leetcode_eval(
 
         model.eval()
         with torch.no_grad():
-            import torch
-
             output_ids = model.generate(
                 inputs["input_ids"],
                 max_new_tokens=max_new_tokens,

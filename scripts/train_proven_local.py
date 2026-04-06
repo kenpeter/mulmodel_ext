@@ -249,7 +249,7 @@ def main():
                         reduction="none",
                     ).sum(-1)
                     soft_loss = (soft * mask).sum() / mask.sum().clamp(min=1) * 4.0
-                    loss = (0.5 * soft_loss + 0.5 * hard_loss) / grad_accum  # Iter1: Equal weight to force learning actual correctness
+                    loss = (0.7 * soft_loss + 0.3 * hard_loss) / grad_accum
 
                 loss.backward()
 

@@ -1,111 +1,92 @@
-# Planner — Distillation Pipeline Plan
+# Planner — Accuracy Drop Investigation Plan
 
 ## Goal
-Distill Jackrong/Qwen3.5-0.8B-Claude-4.6-Opus-Reasoning-Distilled (teacher) into a custom coding model (student) with SageAttention + attention residual, evaluated on real LeetCode problems.
+Investigate and fix the accuracy drop issue: 60% (20 problems) → 22-26% (50 problems)
 
-## Strategy: Same-Size Self-Attn Distillation
-- Student matches teacher's self-attention architecture (hidden=1024, 24 layers, 8Q/2KV heads)
-- All 24 student layers are self-attention (no linear_attn / GatedDeltaNet)
-- Direct weight initialization from teacher's 6 self-attention layers (3,7,11,15,19,23)
-- Remaining 18 layers initialized randomly, distilled via logit matching
-- Use teacher's tokenizer — no vocabulary projection needed
-- Add SageAttention + attention residual on top
+## Definition of Done
+- [ ] Fix eval_student.py to use correct checkpoint path (final.pt)
+- [ ] Modify leetcode_eval.py to save detailed per-problem results
+- [ ] Run evaluation on same checkpoint: first 20, next 20, last 10 problems
+- [ ] Compare results to determine if drop is real or eval bug
+- [ ] (Optional) Fix correctness validation - run actual test cases
 
-## File Structure
-```
-/home/kenpeter/work/mulmodel_ext/
-├── model/
-│   ├── __init__.py
-│   ├── config.py          # StudentModelConfig
-│   ├── attention.py       # SageAttention + AttentionResidual
-│   ├── mlp.py             # SwiGLU MLP
-│   ├── layer.py           # TransformerDecoderLayer
-│   └── student.py         # StudentModel (full model)
-├── train/
-│   ├── __init__.py
-│   ├── distill.py         # DistillationTrainer (KL + CE loss)
-│   ├── data.py            # LeetCode dataset loader
-│   └── config.py          # Training hyperparams
-├── eval/
-│   ├── __init__.py
-│   └── leetcode_eval.py   # Run model on LeetCode problems, sandbox execute
-├── scripts/
-│   └── run_distill.sh     # Entry point
-└── requirements.txt
-```
+---
 
-## Implementation Steps
+## Steps
 
-### Step 1: model/config.py
-- Define `StudentConfig` dataclass matching teacher's self-attention architecture
-- hidden_size=1024, num_hidden_layers=24, num_attention_heads=8, num_key_value_heads=2
-- head_dim=256, intermediate_size=3584, vocab_size=248320
-- rope_theta=10000000, partial_rotary_factor=0.25, rms_norm_eps=1e-6
-- Add sage_attention=True, attn_residual=True flags
+### Step 1: Fix checkpoint path in eval_student.py
+- **Files**: `/home/kenpeter/work/mulmodel_ext/eval_student.py`
+- **Change**: Line 20: `checkpoint_path = "/home/kenpeter/work/mulmodel_ext/checkpoints/final.pt"` (was student_final.pt)
+- **Verify**: Check file exists with `ls -la checkpoints/final.pt`
+- **Risk**: None - just path fix, easily reversible
 
-### Step 2: model/attention.py
-- `SageAttention(nn.Module)`:
-  - Standard Q/K/V projections + o_proj (same shapes as teacher)
-  - Q/K norm (RMSNorm on head dim)
-  - Rotary position embeddings (RoPE with partial rotary factor=0.25)
-  - SageAttention kernel: use `sageattn` for attention computation (FP8 Q/K)
-  - Fallback to standard SDPA if sageattn fails
-- `AttentionResidual(nn.Module)`:
-  - Learnable gate: sigmoid(gate_param)
-  - output = gate * attn_output + (1 - gate) * residual_input
+### Step 2: Save detailed per-problem results in training eval
+- **Files**: `/home/kenpeter/work/mulmodel_ext/scripts/train_kda_muon.py`
+- **Change**: Line 298-299 - remove the filter that excludes "results":
+  ```python
+  # Before (excludes detailed results):
+  save_results = {k: v for k, v in eval_results.items() if k != "results"}
+  
+  # After (includes detailed results):
+  save_results = eval_results.copy()
+  save_results["detailed_results"] = eval_results.get("results", [])
+  ```
+- **Verify**: After next training eval, check eval_step_*.json has "detailed_results" array
+- **Risk**: Increases file size, but valuable for debugging
 
-### Step 3: model/mlp.py
-- SwiGLU MLP: gate_proj → SiLU → * up_proj → down_proj
-- Same shapes as teacher: gate[3584,1024], up[3584,1024], down[1024,3584]
+### Step 3: Add problem index tracking to leetcode_eval.py
+- **Files**: `/home/kenpeter/work/mulmodel_ext/eval/leetcode_eval.py`
+- **Change**: Add problem difficulty and title to result dict:
+  - Extract difficulty from problem metadata if available
+  - Add problem index to result (already has "index": i)
+- **Verify**: Check saved results include problem identifiers
+- **Risk**: None - adds more info, doesn't change logic
 
-### Step 4: model/layer.py
-- `TransformerDecoderLayer(nn.Module)`:
-  - input_layernorm → SageAttention + AttentionResidual → post_attention_layernorm → MLP
-  - Pre-norm architecture (RMSNorm before attn and MLP)
+### Step 4: Run segmented evaluation on final.pt
+- **Files**: Create temporary eval script or use existing eval_student.py with modifications
+- **Change**: Evaluate same checkpoint (final.pt) on three segments:
+  1. Problems 0-19 (first 20)
+  2. Problems 20-39 (next 20)
+  3. Problems 40-49 (last 10)
+- **Verify**: Compare accuracy across three segments
+- **Risk**: None - just running evaluation
 
-### Step 5: model/student.py
-- `StudentModel(nn.Module)`:
-  - embed_tokens[248320, 1024]
-  - 24x TransformerDecoderLayer
-  - RMSNorm (final)
-  - lm_head tied to embed_tokens
-- `init_from_teacher(teacher_model)`:
-  - Copy self_attn weights from teacher layers 3,7,11,15,19,23 → student layers 3,7,11,15,19,23
-  - Copy MLP weights from same layers
-  - Copy layernorms from same layers
-  - Copy embed_tokens and final norm
-  - Initialize remaining layers from normal distribution
+### Step 5: Analyze results and determine root cause
+- **Expected outcomes**:
+  - If all segments show similar (lower) accuracy → real degradation, not eval bug
+  - If first 20 still ~60% but others lower → something else (difficulty, dataset order)
+  - If all segments show ~60% → previous 50-problem eval was wrong
 
-### Step 6: train/data.py
-- Load justindal/leetcode-python-dataset (train split)
-- Format: concatenate system + user → prompt, assistant → target
-- Tokenize with teacher tokenizer, max_length=4096
-- Create DataLoader with padding/truncation
+---
 
-### Step 7: train/distill.py
-- `DistillationTrainer`:
-  - Forward student → student_logits [B, S, 248320]
-  - Forward teacher (frozen) → teacher_logits [B, S, 248320]
-  - Soft loss: KL divergence(student_softmax(T), teacher_softmax(T)) with T=2.0
-  - Hard loss: CrossEntropy(student_logits, target_ids)
-  - Total loss: alpha * soft_loss + (1-alpha) * hard_loss (alpha=0.7)
-- Optimizer: AdamW 8-bit (bitsandbytes)
-- Gradient checkpointing on student layers
-- BF16 mixed precision
-- LR: 2e-5, warmup 100 steps, cosine decay
-- Epochs: 3-5, batch_size: 1-2 (gradient accumulation 4)
+## Test Plan
 
-### Step 8: eval/leetcode_eval.py
-- Load test split (228 problems)
-- For each problem: generate code with student model
-- Sandbox execute with subprocess + timeout (5s per test)
-- Parse problem tests from examples, run assertions
-- Report: pass@1 accuracy, per-difficulty breakdown (Easy/Medium/Hard)
+1. **Unit test**: Verify checkpoint path fix works
+   ```bash
+   ls -la checkpoints/final.pt
+   python eval_student.py 2>&1 | head -20
+   ```
 
-### Step 9: scripts/run_distill.sh
-- Single entry point: init student → load teacher → distill → eval
+2. **Manual verification**: Check segmented results
+   - First 20: ~60%? 
+   - Next 20: ~?%
+   - Last 10: ~?%
 
-## Risk Mitigation
-- **12GB VRAM**: Use gradient checkpointing, freeze teacher, BF16, batch_size=1
-- **SageAttention compatibility**: Fallback to standard SDPA if kernel fails
-- **LeetCode sandbox**: subprocess with timeout, no network, restricted imports
+3. **Integration test**: Compare with previous eval results
+   - Load previous eval_results.json
+   - Compare problem-by-problem if possible
+
+---
+
+## Out of Scope
+- Training new models
+- Fixing the model architecture
+- Adding test case execution (would require significant changes to leetcode_eval.py)
+- Investigating why accuracy dropped during training (only investigating eval)
+
+---
+
+## Risk Assessment
+- **Low risk**: Path fix is trivial
+- **Medium risk**: Segmented eval requires running 3 separate evals (time-consuming but safe)
+- **Rollback**: Can always revert code changes with git

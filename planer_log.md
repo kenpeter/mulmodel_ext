@@ -1,5 +1,23 @@
 # Planner Log
 
+## Current Task: Accuracy Drop Investigation
+
+### Problem
+- 60% accuracy on 20 problems → 22-26% on 50 problems
+- Fact Seeker identified 4 issues:
+  1. Difficulty NOT cause (later problems have more Easy)
+  2. Detailed results NOT saved (train_kda_muon.py excludes "results")
+  3. Wrong checkpoint path (student_final.pt vs final.pt)
+  4. No correctness validation (only checks if code runs, not if correct)
+
+### Plan Created
+- Fix eval_student.py checkpoint path
+- Save detailed per-problem results in training eval
+- Run segmented evaluation (first 20, next 20, last 10) on same checkpoint
+- Determine if drop is real or eval bug
+
+---
+
 ## Decision: Same-Size Self-Attn Distillation
 
 ### Why match teacher architecture exactly?

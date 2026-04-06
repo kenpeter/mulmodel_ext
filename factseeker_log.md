@@ -1,6 +1,44 @@
 # Fact Seeker Report — Updated
 
-## Teacher Model: Jackrong/Qwen3.5-0.8B-Claude-4.6-Opus-Reasoning-Distilled
+---
+
+## New Investigation: Accuracy Drop 60% → 22-26%
+
+### Summary
+Accuracy dropped from 60% (12/20) to 22-26% (11-13/50) when evaluating on more problems.
+
+### Key Findings
+
+1. **Evaluation Configuration Differences**
+   - 20-problem: max_new_tokens=256, checkpoint=step_14600.pt
+   - 50-problem: max_new_tokens=512, checkpoint may differ
+
+2. **Difficulty Distribution (NOT the cause)**
+   - First 20: 3 Easy, 8 Medium, 9 Hard (15% Easy, 40% Med, 45% Hard)
+   - Problems 20-49: 6 Easy, 12 Medium, 12 Hard (20% Easy, 40% Med, 40% Hard)
+   - Later problems actually have MORE Easy, FEWER Hard
+
+3. **Missing Detailed Results**
+   - Saved JSON only has: {total, passed, accuracy}
+   - Per-problem results NOT saved (line 298-302 train_kda_muon.py excludes "results")
+
+4. **Potential Issues**
+   - eval_student.py references non-existent `student_final.pt` (should be `final.pt`)
+   - No correctness validation — only checks if code runs without error
+
+### What We Cannot Determine
+- Which specific problems passed/failed
+- Failure patterns (syntax vs runtime vs wrong answer)
+- Whether problems 20-49 are harder in non-difficulty ways
+
+### Recommendations
+1. Run eval with detailed per-problem results saved
+2. Fix checkpoint path in eval_student.py  
+3. Add actual test case validation (not just "runs without error")
+
+---
+
+## Previous: Teacher Model: Jackrong/Qwen3.5-0.8B-Claude-4.6-Opus-Reasoning-Distilled
 - **Status**: Downloaded, loads, inference verified ✓
 - **Architecture**: Qwen3.5ForCausalLM, 0.75B params
 - **Layers**: 24 total — 18 linear_attn (Qwen3_5GatedDeltaNet) + 6 self_attn (Qwen3_5Attention) at positions 3,7,11,15,19,23

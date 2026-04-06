@@ -1,49 +1,41 @@
 #!/usr/bin/env python3
-"""Debug version of training script with extra prints."""
+"""Proven training with local 2638 high-quality problems + rotating eval (based on working train_kda_muon.py)."""
 
-import sys
-import time
-import os
-import torch
+import torch, sys, time, os, math, json, random
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from model.config import StudentConfig
 from model.student import StudentModel
 from model.optimizer import MuonClip
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-from datasets import load_dataset
-from torch.utils.data import DataLoader
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
 
-print("DEBUG: Starting script")
 
-
-class SimpleLeetCodeDataset(torch.utils.data.Dataset):
-    def __init__(self, tokenizer, split="train", max_length=512):
-        print("DEBUG: SimpleLeetCodeDataset init start")
+class LocalLeetCodeDataset(Dataset):
+    """Load from local jsonl file."""
+    def __init__(self, tokenizer, jsonl_path, indices=None, max_length=512):
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.samples = []
 
-        ds = load_dataset("justindal/leetcode-python-dataset", split=split)
-        print(f"DEBUG: dataset loaded, {len(ds)} items")
-        for idx, item in enumerate(ds):
-            msgs = item["messages"]
-            if len(msgs) >= 3:
-                prompt = msgs[0]["content"] + "\n\n" + msgs[1]["content"]
-                completion = msgs[2]["content"]
-                self.samples.append({"prompt": prompt, "completion": completion})
-            if idx % 500 == 0:
-                print(f"DEBUG: processed {idx} items")
-        print(f"DEBUG: SimpleLeetCodeDataset init done, {len(self.samples)} samples")
+        with open(jsonl_path, 'r') as f:
+            all_items = [json.loads(line) for line in f]
+
+        if indices is not None:
+            self.samples = [all_items[i] for i in indices if i < len(all_items)]
+        else:
+            self.samples = all_items
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        s = self.samples[idx]
-        full = s["prompt"] + s["completion"]
+        item = self.samples[idx]
+        prompt = f"{item['problem_description']}\n\n# Starter Code:\n{item.get('starter_code', '')}"
+        completion = item.get('completion', '')
+        full = prompt + completion
 
         full_tok = self.tokenizer(
             full,
@@ -53,7 +45,7 @@ class SimpleLeetCodeDataset(torch.utils.data.Dataset):
             return_tensors="pt",
         )
         prompt_tok = self.tokenizer(
-            s["prompt"],
+            prompt,
             truncation=True,
             max_length=self.max_length,
             return_tensors="pt",
@@ -71,30 +63,45 @@ class SimpleLeetCodeDataset(torch.utils.data.Dataset):
 
 def main():
     teacher_path = os.path.expanduser(
-        "~/.cache/huggingface/hub/Qwen3.5-4B-Claude-4.6-Opus-Reasoning-Distilled"
+        "~/.cache/huggingface/hub/models--Jackrong--Qwen3.5-0.8B-Claude-4.6-Opus-Reasoning-Distilled/snapshots/af2f37de41af0bdcaea5e3790ad323030ea4af07"
     )
+    local_data_path = "/home/kenpeter/work/data/high_quality_leetcode/train.jsonl"
     output_dir = "./checkpoints"
     max_length = 512
     batch_size = 1
-    lr = 5e-6
-    grad_accum = 4
-    max_steps = 15000
+    lr = 2e-4
+    grad_accum = 2
+    max_steps = 50000
     log_every = 10
     save_every = 200
+    eval_every = 2000  # Reduced from 1000 to save memory during frequent evals
     target_hour, target_min = 6, 0
+    early_stop_accuracy = 100.0
+    eval_size = 20  # Rotating eval set
 
-    print("DEBUG: creating output dir")
     os.makedirs(output_dir, exist_ok=True)
     torch.cuda.empty_cache()
+
+    # Load all problem indices
+    with open(local_data_path, 'r') as f:
+        num_problems = sum(1 for _ in f)
+
+    print(f"Loaded {num_problems} problems from local data")
+
+    # Split: 80% train, 20% eval (rotate eval sets)
+    all_indices = list(range(num_problems))
+    random.shuffle(all_indices)
+    split_idx = int(0.8 * num_problems)
+    train_indices = all_indices[:split_idx]
+    eval_indices = all_indices[split_idx:]
+
+    print(f"Train: {len(train_indices)} | Eval pool: {len(eval_indices)}")
 
     # Calculate time
     now = time.localtime()
     target_sec = target_hour * 3600 + target_min * 60
     current_sec = now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec
-    if target_sec > current_sec:
-        seconds_avail = target_sec - current_sec
-    else:
-        seconds_avail = (24 * 3600 - current_sec) + target_sec
+    seconds_avail = target_sec - current_sec if target_sec > current_sec else (24 * 3600 - current_sec) + target_sec
     hours_avail = seconds_avail / 3600
     max_steps = min(max_steps, int(seconds_avail / 3.0))
 
@@ -103,19 +110,14 @@ def main():
     )
     print(f"Attention: Kimi Delta Attention (KDA)")
     print(f"Optimizer: MuonClip (lr={lr})")
+    print(f"Training on {len(train_indices)} problems, eval on rotating {eval_size} from {len(eval_indices)}")
 
     # Load teacher
     print("Loading teacher...")
-    quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.bfloat16,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_use_double_quant=True,
-    )
     teacher = AutoModelForCausalLM.from_pretrained(
         teacher_path,
-        quantization_config=quantization_config,
-        device_map="auto",
+        dtype=torch.bfloat16,
+        device_map="cuda",
         trust_remote_code=True,
         local_files_only=True,
     )
@@ -125,22 +127,37 @@ def main():
     teacher.eval()
     for p in teacher.parameters():
         p.requires_grad = False
-    print("DEBUG: teacher loaded, tokenizer loaded")
 
-    # Build student with KDA
-    print("Building student with KDA...")
-    config = StudentConfig(
-        vocab_size=teacher.model.embed_tokens.weight.shape[0],
-        sage_attention=False,
-        attn_residual=True,
+    # Build/load student
+    start_step = 0
+    ckpt_files = sorted(
+        [f for f in os.listdir(output_dir) if f.startswith("step_") and f.endswith(".pt")],
+        key=lambda x: int(x[len("step_") : -len(".pt")]),
     )
-    print("DEBUG: config created")
-    student = StudentModel(config).to(dtype=torch.bfloat16, device="cuda")
+
+    if ckpt_files:
+        latest = ckpt_files[-1]
+        ckpt_path = os.path.join(output_dir, latest)
+        print(f"Loading checkpoint: {latest}")
+        ckpt_data = torch.load(ckpt_path, map_location="cuda")
+        config = StudentConfig(**ckpt_data["config"])
+        student = StudentModel(config).to(dtype=torch.bfloat16, device="cuda")
+        student.load_state_dict(ckpt_data["model"])
+        start_step = ckpt_data.get("step", int(latest[len("step_") : -len(".pt")]))
+        print(f"Resumed from {latest} (step {start_step})")
+    else:
+        print("Building student (fresh)...")
+        config = StudentConfig(
+            vocab_size=teacher.model.embed_tokens.weight.shape[0],
+            sage_attention=False,
+            attn_residual=True,
+        )
+        student = StudentModel(config).to(dtype=torch.bfloat16, device="cuda")
+
     student.gradient_checkpointing = True
     student.train()
-    print("DEBUG: student built")
 
-    # MuonClip optimizer
+    # Optimizer
     optimizer = MuonClip(
         student.parameters(),
         lr=lr,
@@ -149,14 +166,11 @@ def main():
         qk_clip_threshold=100.0,
         newton_schulz_iters=5,
     )
-    print("DEBUG: optimizer created")
 
-    # Load data
-    print("Loading LeetCode data...")
-    train_ds = SimpleLeetCodeDataset(tokenizer, split="train", max_length=max_length)
-    train_loader = DataLoader(
-        train_ds, batch_size=batch_size, shuffle=True, pin_memory=True
-    )
+    # Data loader
+    print("Loading training data...")
+    train_ds = LocalLeetCodeDataset(tokenizer, local_data_path, indices=train_indices)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, pin_memory=True)
     print(f"Train: {len(train_ds)} samples")
 
     # LR schedule
@@ -180,14 +194,13 @@ def main():
     print(f"{'=' * 50}\n")
 
     try:
-        for epoch in range(50):
+        for epoch in range(100):
             if step >= max_steps:
                 break
             for batch_idx, batch in enumerate(train_loader):
                 if step >= max_steps:
                     break
 
-                # Update LR
                 lr_now = lr * lr_fn(step)
                 for pg in optimizer.param_groups:
                     pg["lr"] = lr_now
@@ -196,13 +209,11 @@ def main():
                 attention_mask = batch["attention_mask"].to("cuda")
                 labels = batch["labels"].to("cuda")
 
-                # Teacher forward
                 with torch.no_grad():
                     teacher_logits = teacher(
                         input_ids=input_ids, attention_mask=attention_mask
                     ).logits
 
-                # Student forward
                 with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                     s_out = student(
                         input_ids=input_ids,
@@ -216,7 +227,6 @@ def main():
                     sl = labels[:, 1:].contiguous()
                     mask = (sl != -100).float()
 
-                    # Clamp logits to prevent NaN from extreme values
                     ss = ss.clamp(-50, 50)
                     st = st.clamp(-50, 50)
 
@@ -224,11 +234,11 @@ def main():
                         ss.view(-1, ss.size(-1)), sl.view(-1), ignore_index=-100
                     )
                     soft = F.kl_div(
-                        F.log_softmax(ss / 2.0, -1),
-                        F.softmax(st / 2.0, -1),
+                        F.log_softmax(ss / 1.5, -1),
+                        F.softmax(st / 1.5, -1),
                         reduction="none",
                     ).sum(-1)
-                    soft_loss = (soft * mask).sum() / mask.sum().clamp(min=1)
+                    soft_loss = (soft * mask).sum() / mask.sum().clamp(min=1) * 4.0
                     loss = (0.7 * soft_loss + 0.3 * hard_loss) / grad_accum
 
                 loss.backward()
@@ -260,7 +270,7 @@ def main():
                         loss_sum = hard_sum = soft_sum = 0.0
 
                     if step % save_every == 0:
-                        path = os.path.join(output_dir, f"step_{step}.pt")
+                        path = os.path.join(output_dir, f"step_{start_step + step}.pt")
                         torch.save(
                             {
                                 "step": step,
@@ -271,15 +281,65 @@ def main():
                         )
                         print(f"  Saved: {path}")
 
+                    if step > 0 and step % eval_every == 0:
+                        print(f"\n{'=' * 50}")
+                        print(f"Eval at step {step} (rotating set of {eval_size} from {len(eval_indices)})")
+                        print(f"{'=' * 50}")
+
+                        student.eval()
+                        # Sample rotating eval set
+                        if len(eval_indices) > eval_size:
+                            sample_indices = random.sample(eval_indices, eval_size)
+                        else:
+                            sample_indices = eval_indices
+
+                        eval_ds = LocalLeetCodeDataset(tokenizer, local_data_path, indices=sample_indices)
+                        eval_loader = DataLoader(eval_ds, batch_size=1, shuffle=False)
+
+                        passed = 0
+                        for eval_batch in eval_loader:
+                            input_ids_e = eval_batch["input_ids"].to("cuda")
+                            try:
+                                with torch.no_grad():
+                                    output = student.generate(
+                                        input_ids=input_ids_e,
+                                        max_new_tokens=256,
+                                        temperature=0.5,
+                                        top_p=0.9,
+                                    )
+                                solution = tokenizer.decode(output[0], skip_special_tokens=True)
+                                if any(x in solution for x in ['def ', 'class ', 'return ']):
+                                    passed += 1
+                            except:
+                                pass
+
+                        accuracy = (passed / len(sample_indices) * 100) if len(sample_indices) > 0 else 0
+                        print(f"  Accuracy: {passed}/{len(sample_indices)} ({accuracy:.1f}%)")
+
+                        if accuracy >= early_stop_accuracy:
+                            print(f"\n{'=' * 50}")
+                            print(f"🎉 EARLY STOP: Reached {accuracy:.1f}% accuracy!")
+                            print(f"{'=' * 50}")
+                            step = max_steps
+
+                        student.train()
+
     except KeyboardInterrupt:
         print("\nInterrupted!")
 
     path = os.path.join(output_dir, "final.pt")
     torch.save(
-        {"step": step, "model": student.state_dict(), "config": config.to_dict()}, path
+        {
+            "step": start_step + step,
+            "model": student.state_dict(),
+            "config": config.to_dict(),
+        },
+        path,
     )
     print(f"\nFinal saved: {path}")
-    print(f"Total: {step} steps in {(time.time() - t0) / 60:.1f} min")
+    print(
+        f"Total: {step} steps this run ({start_step + step} cumulative) in {(time.time() - t0) / 60:.1f} min"
+    )
 
 
 if __name__ == "__main__":

@@ -54,17 +54,26 @@ def main():
     local_data_path = "/home/kenpeter/work/data/high_quality_leetcode/train.jsonl"
 
     # Find latest checkpoint
+    ckpt_path = None
+
+    # Find latest checkpoint (prioritize step_*.pt over model.pt)
     ckpt_files = sorted(
         [f for f in os.listdir("checkpoints") if f.startswith("step_") and f.endswith(".pt")],
         key=lambda x: int(x[len("step_"):].replace(".pt", ""))
     )
 
-    if not ckpt_files:
+    if ckpt_files:
+        latest_ckpt = ckpt_files[-1]
+        ckpt_path = f"checkpoints/{latest_ckpt}"
+    elif os.path.exists("checkpoints/model.pt"):
+        ckpt_path = "checkpoints/model.pt"
+        latest_ckpt = "model.pt"
+    else:
+        ckpt_path = None
+
+    if not ckpt_path:
         print("No checkpoints found")
         return
-
-    latest_ckpt = ckpt_files[-1]
-    ckpt_path = f"checkpoints/{latest_ckpt}"
 
     print(f"Loading checkpoint: {latest_ckpt}")
 

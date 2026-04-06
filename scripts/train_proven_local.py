@@ -244,8 +244,8 @@ def main():
                         ss.view(-1, ss.size(-1)), sl.view(-1), ignore_index=-100
                     )
                     soft = F.kl_div(
-                        F.log_softmax(ss / 1.5, -1),
-                        F.softmax(st / 1.5, -1),
+                        F.log_softmax(ss / 2.0, -1),
+                        F.softmax(st / 2.0, -1),
                         reduction="none",
                     ).sum(-1)
                     soft_loss = (soft * mask).sum() / mask.sum().clamp(min=1) * 4.0

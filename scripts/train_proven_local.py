@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Proven training with local 2638 high-quality problems + rotating eval (based on working train_kda_muon.py)."""
 
-import torch, sys, time, os, math, json, random
+import torch, sys, time, os, math, json, random, gc
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -67,8 +67,8 @@ def main():
     )
     local_data_path = "/home/kenpeter/work/data/high_quality_leetcode/train.jsonl"
     output_dir = "./checkpoints"
-    max_length = 512
-    batch_size = 1
+    max_length = 256  # Reduced from 384 for faster training (saves ~30% memory)
+    batch_size = 1  # Keep at 1 for stability
     lr = 2e-4
     grad_accum = 2
     max_steps = 50000
@@ -114,9 +114,19 @@ def main():
 
     # Load teacher
     print("Loading teacher...")
+    # Load teacher with 8-bit quantization to save memory
+    from transformers import BitsAndBytesConfig
+    
+    bnb_config = BitsAndBytesConfig(
+        load_in_8bit=True,
+        bnb_8bit_use_double_quant=True,
+        bnb_8bit_quant_type="nf8",
+        bnb_8bit_compute_dtype=torch.float32
+    )
+    
     teacher = AutoModelForCausalLM.from_pretrained(
         teacher_path,
-        dtype=torch.bfloat16,
+        quantization_config=bnb_config,
         device_map="cuda",
         trust_remote_code=True,
         local_files_only=True,
@@ -249,6 +259,10 @@ def main():
                     optimizer.apply_qk_clip(student)
                     optimizer.zero_grad()
                     step += 1
+
+                    # Minimal memory cleanup only every 100 steps (let GPU compute uninterrupted)
+                    if step % 100 == 0:
+                        torch.cuda.empty_cache()
 
                     h = hard_loss.item()
                     s = soft_loss.item()

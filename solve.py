@@ -12,7 +12,7 @@ from model.student import StudentModel
 from transformers import AutoTokenizer
 
 
-def load_model(checkpoint_path: str = "./checkpoints/step_13200.pt"):
+def load_model(checkpoint_path: str = "./checkpoints/final.pt"):
     """Load ONLY the student model (no teacher needed)."""
     if not os.path.exists(checkpoint_path):
         print(f"❌ Checkpoint not found: {checkpoint_path}")

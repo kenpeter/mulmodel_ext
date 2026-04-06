@@ -67,7 +67,7 @@ def main():
     )
     local_data_path = "/home/kenpeter/work/data/high_quality_leetcode/train.jsonl"
     output_dir = "./checkpoints"
-    max_length = 256  # Reduced from 384 for faster training (saves ~30% memory)
+    max_length = 128  # Aggressive reduction for OOM resolution (~50% vs 256)
     batch_size = 1  # Keep at 1 for stability
     lr = 2e-4
     grad_accum = 2
@@ -336,6 +336,10 @@ def main():
                             print(f"{'=' * 50}")
                             step = max_steps
 
+                        # Clean up eval tensors before resuming training
+                        del eval_ds, eval_loader, sample_indices
+                        torch.cuda.empty_cache()
+                        gc.collect()
                         student.train()
 
     except KeyboardInterrupt:

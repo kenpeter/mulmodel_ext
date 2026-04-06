@@ -69,12 +69,13 @@ def main():
     max_length = 512
     batch_size = 1
     lr = 2e-4
-    grad_accum = 4
-    max_steps = 15000
+    grad_accum = 2
+    max_steps = 50000  # Extended for continuous training until 100% eval
     log_every = 10
     save_every = 200
     eval_every = 1000
     target_hour, target_min = 6, 0
+    early_stop_accuracy = 100.0  # Stop when eval reaches 100%
 
     os.makedirs(output_dir, exist_ok=True)
     torch.cuda.empty_cache()
@@ -231,8 +232,8 @@ def main():
                         ss.view(-1, ss.size(-1)), sl.view(-1), ignore_index=-100
                     )
                     soft = F.kl_div(
-                        F.log_softmax(ss / 2.0, -1),
-                        F.softmax(st / 2.0, -1),
+                        F.log_softmax(ss / 1.5, -1),
+                        F.softmax(st / 1.5, -1),
                         reduction="none",
                     ).sum(-1)
                     soft_loss = (soft * mask).sum() / mask.sum().clamp(min=1) * 4.0
@@ -305,9 +306,18 @@ def main():
                         with open(eval_path, "w") as f:
                             json.dump(save_results, f, indent=2)
                         print(f"  Eval saved: {eval_path}")
+                        accuracy = eval_results['accuracy']
                         print(
-                            f"  Accuracy: {eval_results['passed']}/{eval_results['total']} ({eval_results['accuracy']:.1f}%)"
+                            f"  Accuracy: {eval_results['passed']}/{eval_results['total']} ({accuracy:.1f}%)"
                         )
+
+                        # Early stopping when all questions pass
+                        if accuracy >= early_stop_accuracy:
+                            print(f"\n{'=' * 50}")
+                            print(f"🎉 EARLY STOP: Reached {accuracy:.1f}% accuracy!")
+                            print(f"{'=' * 50}")
+                            step = max_steps  # Force exit training loop
+
                         student.train()
 
     except KeyboardInterrupt:

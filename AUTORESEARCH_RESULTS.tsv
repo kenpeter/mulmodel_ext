@@ -1,2 +1,2 @@
 iteration	timestamp	change	accuracy	status	notes	git_commit
-0	2026-04-12_starting	baseline	-	pending	Establishing baseline with Temperature=2.0	-
+0	2026-04-13_recovery	Fresh training (local dataset)	100.0	completed	Step 2000: 90% (18/20), Step 4000: 100% (20/20). Early stop triggered. Training recovered from checkpoint regression.	main

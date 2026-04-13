@@ -76,7 +76,7 @@ def main():
     save_every = 200
     eval_every = 2000  # Reduced from 1000 to save memory during frequent evals
     target_hour, target_min = 6, 0
-    early_stop_accuracy = 100.0
+    early_stop_accuracy = 90.0
     eval_size = 20  # Rotating eval set
 
     os.makedirs(output_dir, exist_ok=True)
@@ -249,7 +249,7 @@ def main():
                         reduction="none",
                     ).sum(-1)
                     soft_loss = (soft * mask).sum() / mask.sum().clamp(min=1) * 4.0
-                    loss = (0.7 * soft_loss + 0.3 * hard_loss) / grad_accum
+                    loss = (0.6 * soft_loss + 0.4 * hard_loss) / grad_accum
 
                 loss.backward()
 

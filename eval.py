@@ -112,12 +112,19 @@ def main():
     eval_ds = LocalLeetCodeDataset(tokenizer, local_data_path, indices=eval_indices)
     eval_loader = DataLoader(eval_ds, batch_size=1, shuffle=False)
 
+    # Load all data items once
+    with open(local_data_path, 'r') as f:
+        all_items = [json.loads(line) for line in f]
+
     # Track both metrics
     code_passed = 0  # Has keywords: def, class, return
-    test_passed = 0  # Solution exactly matches expected
+    test_passed = 0  # Actually passes all test cases
 
     for i, batch in enumerate(eval_loader):
         input_ids = batch["input_ids"].to("cuda")
+        problem_idx = eval_indices[i]
+        problem_item = all_items[problem_idx]
+
         try:
             with torch.no_grad():
                 output = student.generate(
@@ -136,16 +143,42 @@ def main():
             else:
                 code_status = "✗"
 
-            # REAL METRIC: Does solution match expected exactly?
-            # Get expected from eval_indices
-            with open(local_data_path, 'r') as f:
-                all_items = [json.loads(line) for line in f]
-            expected = all_items[eval_indices[i]].get('completion', '')
-            if expected and expected.strip() in solution:
-                test_passed += 1
-                test_status = "✓"
-            else:
+            # REAL METRIC: Run the actual test cases from the data
+            test_status = "✗"
+            try:
+                # Extract the test function and entry point from problem data
+                test_code = problem_item.get('test', '')
+                entry_point = problem_item.get('entry_point', '')
+
+                if test_code and entry_point:
+                    # Parse entry point (e.g., "Solution().twoSum" -> "Solution", "twoSum")
+                    # Combine generated solution + test code
+                    full_code = solution + "\n\n" + test_code
+
+                    # Execute the code in a safe namespace
+                    namespace = {}
+                    exec(full_code, namespace)
+
+                    # Call the check function with the solution
+                    # Parse the entry point to get the function
+                    parts = entry_point.split('(')
+                    class_name = parts[0]  # e.g., "Solution"
+
+                    # Instantiate the class and get the check function
+                    if class_name in namespace:
+                        solution_instance = namespace[class_name]()
+                        check_fn = namespace['check']
+                        check_fn(solution_instance)
+
+                        # If we get here, all assertions passed
+                        test_passed += 1
+                        test_status = "✓"
+            except AssertionError as e:
+                # Test failed
                 test_status = "✗"
+            except Exception as e:
+                # Execution error
+                test_status = "E"
 
         except Exception as e:
             code_status = "E"

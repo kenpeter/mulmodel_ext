@@ -67,7 +67,7 @@ def main():
     )
     local_data_path = "/home/kenpeter/work/data/high_quality_leetcode/train.jsonl"
     output_dir = "./checkpoints"
-    max_length = 32  # Aggressively reduced for GPU memory constraints
+    max_length = 96  # Standard setting for KDA/FLA compatibility
     batch_size = 1  # Keep at 1 for stability
     lr = 2e-4
     grad_accum = 1  # Reduced from 2 to resolve resume OOM

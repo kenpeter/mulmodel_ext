@@ -32,6 +32,8 @@ class KimiLinearAttention(nn.Module):
         self.layer_idx = layer_idx
 
         try:
+            # Temporarily disabled KDA due to CUDA assert error in FLA library
+            raise ImportError("KDA disabled - using standard SDPA attention")
             from fla.layers import KimiDeltaAttention
 
             self.kda = KimiDeltaAttention(

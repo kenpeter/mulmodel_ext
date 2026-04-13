@@ -67,7 +67,7 @@ def main():
     )
     local_data_path = "/home/kenpeter/work/data/high_quality_leetcode/train.jsonl"
     output_dir = "./checkpoints"
-    max_length = 96  # Further reduced to resolve resume OOM (~62% vs 128)
+    max_length = 64  # Reduced from 96 to free memory for fresh training
     batch_size = 1  # Keep at 1 for stability
     lr = 2e-4
     grad_accum = 1  # Reduced from 2 to resolve resume OOM
@@ -239,6 +239,7 @@ def main():
 
                     ss = ss.clamp(-50, 50)
                     st = st.clamp(-50, 50)
+                    del teacher_logits  # Free teacher logits immediately after clamping
 
                     hard_loss = F.cross_entropy(
                         ss.view(-1, ss.size(-1)), sl.view(-1), ignore_index=-100

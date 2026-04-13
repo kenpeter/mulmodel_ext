@@ -33,7 +33,7 @@ class LocalLeetCodeDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.samples[idx]
-        prompt = f"{item['problem_description']}\n\n# Starter Code:\n{item.get('starter_code', '')}"
+        prompt = f"{item['problem_description']}\n\n# Starter Code:\n{item.get('starter_code', '')}\n\n# Solution:\n"
         completion = item.get('completion', '')
         full = prompt + completion
 

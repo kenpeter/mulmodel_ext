@@ -7,15 +7,23 @@
 ### 1. Real Metric (PRIMARY) 🔴
 **Name**: Test Case Passing  
 **Script**: `eval.py` (runs both metrics)  
-**Measurement**: Exact match - expected solution code found in generated output  
+**Measurement**: Execute generated code, run all test assertions from data  
 **Range**: 0-100%  
 **What It Measures**: Does the generated solution actually solve the problem?  
+
+**How It Works**:
+1. Generate solution code from model
+2. Execute the generated code in Python
+3. Run the test function from `data['test']` field (50-100+ assertions per problem)
+4. If ALL assertions pass → 1 point
+5. If ANY assertion fails OR code errors → 0 points
 
 **Why This Metric**:
 - Measures what we actually care about: solving LeetCode problems
 - Objective and mechanical: no interpretation needed
 - Aligns with human evaluation: "passing all test cases"
 - Prevents optimizing for fake metrics (code keywords, syntax, etc.)
+- Uses REAL test data from dataset
 
 ### 2. Guard Metric (SECONDARY) 🟡
 **Name**: Code Structure  

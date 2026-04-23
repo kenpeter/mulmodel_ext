@@ -1,0 +1,15 @@
+{
+  "checkpoint": "step_5400.pt",
+  "test_metric": {
+    "name": "Test Case Passing (REAL)",
+    "passed": 0,
+    "total": 20,
+    "accuracy": 0.0
+  },
+  "code_metric": {
+    "name": "Code Structure (GUARD)",
+    "passed": 5,
+    "total": 20,
+    "accuracy": 25.0
+  }
+}

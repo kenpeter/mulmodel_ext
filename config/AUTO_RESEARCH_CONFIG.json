@@ -1,0 +1,41 @@
+{
+  "auto_research_mode": true,
+  "target_metric": "test_case_passing",
+  "current_baseline": 0.0,
+  "target_accuracy": 90.0,
+  "capsule_search_strategy": "bayesian_optimization",
+  "evaluation_interval_steps": 500,
+  "auto_apply_threshold": 5.0,
+  "max_iterations": 50,
+  "rollback_on_regression": true,
+  "regression_threshold_percent": -5.0,
+  "severe_regression_rollback": -15.0,
+  "monitor_teacher_alignment": true,
+  "distillation_divergence_threshold": 0.4,
+  "data_augmentation_enabled": true,
+  "capsules_to_explore": [
+    "Dropout Regularization Strategy",
+    "Weight Decay Optimization",
+    "Data Augmentation Pipeline",
+    "Adaptive Learning Rate Scheduling",
+    "Gradient Clipping Optimization",
+    "Mixed Precision Training",
+    "Model Checkpointing",
+    "Distillation Quality Monitor",
+    "Solution Correctness Regression Detection",
+    "Hyperparameter Search (Grid + Bayesian)"
+  ],
+  "expected_timeline": {
+    "phase_1": "Steps 5400-7400: Test baseline with capsules",
+    "phase_2": "Steps 7400-12000: Auto-research optimization",
+    "phase_3": "Steps 12000-18000: Fine-tune best combination",
+    "target": "90%+ test-case passing by step 18000+"
+  },
+  "monitoring_tools": [
+    "evolver_autoresearch_monitor.py --monitor",
+    "python eval.py (every 500 steps)",
+    "tail -f /tmp/training.log",
+    "cat AUTORESEARCH_RESULTS.tsv"
+  ],
+  "activated": "2026-04-23T16:45:00Z"
+}

@@ -1,0 +1,17 @@
+{
+  "capsules_active": [
+    "Dropout Regularization Strategy",
+    "Weight Decay Optimization",
+    "Data Augmentation Pipeline",
+    "Distillation Quality Monitor",
+    "Correctness Regression Detection",
+    "Mixed Precision Training"
+  ],
+  "training_focus": "test_case_correctness",
+  "primary_metric": "test_case_passing",
+  "target_accuracy": 90.0,
+  "correctness_check_interval": 500,
+  "verify_every_checkpoint": true,
+  "auto_rollback_on_regression": true,
+  "timestamp": "2026-04-23T17:06:59.752264"
+}

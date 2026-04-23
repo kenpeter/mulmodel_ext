@@ -1,0 +1,53 @@
+{
+  "recovery_enabled": true,
+  "timestamp": "2026-04-23T21:23:22.851960",
+  "capsules_activated": [
+    {
+      "name": "Solution Correctness Regression Detection",
+      "status": "ACTIVE",
+      "triggers_on": "Test-case passing drop > 5%",
+      "auto_rollback_on": "Drop > 15%",
+      "rollback_target": "Previous good checkpoint"
+    },
+    {
+      "name": "Model Checkpointing",
+      "status": "ACTIVE",
+      "saves_every": 200,
+      "units": "steps",
+      "auto_resume_on": "Crash/restart detected"
+    },
+    {
+      "name": "Gradient Accumulation Optimizer",
+      "status": "ACTIVE",
+      "prevents": "Out of Memory (OOM) crashes",
+      "auto_adjust_on": "Memory pressure detected"
+    },
+    {
+      "name": "Adaptive Learning Rate Scheduling",
+      "status": "ACTIVE",
+      "detects": "Loss divergence (NaN, spike)",
+      "auto_action": "Reduce learning rate by 0.5x"
+    },
+    {
+      "name": "Gradient Clipping Optimization",
+      "status": "ACTIVE",
+      "prevents": "Gradient explosion",
+      "auto_action": "Clip gradients > threshold"
+    }
+  ],
+  "recovery_flow": {
+    "step_1_crash": "Training process dies/hangs",
+    "step_2_detect": "Auto-detection: 'Latest checkpoint = step_5200.pt'",
+    "step_3_resume": "Auto-resume: 'Continue from step_5200'",
+    "step_4_monitor": "Continue monitoring correctness",
+    "step_5_alert": "If regression > 5%: Alert",
+    "step_6_rollback": "If regression > 15%: Auto-rollback to previous"
+  },
+  "monitoring_active": {
+    "correctness_verifier": "/tmp/correctness_monitor.log (PID 120616)",
+    "autoresearch_monitor": "/tmp/autoresearch_monitor.log (PID 120617)",
+    "training_process": "/tmp/training.log (PID 120476)",
+    "check_interval": "Every 500 steps"
+  },
+  "status": "READY - All recovery capsules active"
+}

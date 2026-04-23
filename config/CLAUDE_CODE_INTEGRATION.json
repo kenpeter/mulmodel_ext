@@ -1,0 +1,158 @@
+{
+  "integration": "Claude Code Auto-Restart & Remote Control",
+  "status": "READY TO ACTIVATE",
+  "timestamp": "2026-04-23T21:35:00Z",
+
+  "claude_code_auto_restart": {
+    "enabled": true,
+    "triggers": [
+      "Session timeout",
+      "Claude Code process crash",
+      "Connection lost",
+      "Training checkpoint reached",
+      "Recipe execution needed"
+    ],
+    "mechanism": "SessionStart hook",
+    "command": "cd /home/kenpeter/work/evolver && nohup node index.js --loop > /tmp/evolver.log 2>&1 &",
+    "retry_count": 3,
+    "retry_interval_seconds": 5
+  },
+
+  "claude_code_remote_control": {
+    "enabled": true,
+    "method": "/remote-control command (built-in)",
+    "capabilities": [
+      "Start training",
+      "Stop training",
+      "Check status",
+      "View progress",
+      "Monitor metrics",
+      "Restart session",
+      "Apply capsules",
+      "Manage recipes"
+    ]
+  },
+
+  "claude_code_capsule": {
+    "name": "Claude Code Project Management Capsule",
+    "status": "AVAILABLE IN EVOMAP",
+    "capabilities": [
+      {
+        "name": "Auto-Restart Claude Code Session",
+        "triggers": "Session timeout or crash",
+        "action": "Automatically restart with current context"
+      },
+      {
+        "name": "Remote Control Integration",
+        "triggers": "User command via /remote-control",
+        "action": "Execute command in active session"
+      },
+      {
+        "name": "Session Persistence",
+        "triggers": "Ongoing work",
+        "action": "Maintain context across restarts"
+      },
+      {
+        "name": "Auto-Recovery",
+        "triggers": "Connection loss",
+        "action": "Reconnect and resume from last state"
+      },
+      {
+        "name": "Background Task Management",
+        "triggers": "Long-running operations",
+        "action": "Maintain background processes across sessions"
+      }
+    ]
+  },
+
+  "integration_points": {
+    "evolver_daemon": {
+      "auto_restart": true,
+      "hook": "SessionStart",
+      "command": "node index.js --loop"
+    },
+    "training_process": {
+      "auto_restart": true,
+      "mechanism": "nohup (survives session close)",
+      "checkpoint_resume": "Automatic from latest checkpoint"
+    },
+    "monitoring_processes": {
+      "auto_restart": true,
+      "processes": [
+        "correctness_verifier.py",
+        "evolver_autoresearch_monitor.py"
+      ],
+      "on_claude_code_restart": "All monitors re-launched"
+    }
+  },
+
+  "how_it_works": {
+    "scenario_1_session_timeout": {
+      "trigger": "Claude Code session times out",
+      "step_1": "SessionStart hook detects session start",
+      "step_2": "Auto-restart evolver daemon",
+      "step_3": "Check running processes (training, monitors)",
+      "step_4": "Resume from latest checkpoint if needed",
+      "step_5": "All context maintained"
+    },
+    "scenario_2_remote_control": {
+      "trigger": "User issues /remote-control command",
+      "step_1": "Command routed to active Claude Code session",
+      "step_2": "Claude Code executes in same environment",
+      "step_3": "Results returned to user",
+      "step_4": "Background processes continue unaffected"
+    },
+    "scenario_3_process_crash": {
+      "trigger": "Claude Code process crashes",
+      "step_1": "SessionStart hook auto-fires on restart",
+      "step_2": "Evolver daemon re-launched",
+      "step_3": "Training continues (nohup survives)",
+      "step_4": "Monitors re-launched",
+      "step_5": "No loss of progress"
+    }
+  },
+
+  "active_hooks": {
+    "SessionStart": {
+      "description": "Runs when Claude Code session starts",
+      "action": "Auto-start evolver daemon",
+      "current_status": "CONFIGURED"
+    },
+    "Stop": {
+      "description": "Runs when Claude Code session ends",
+      "action": "Save state, keep background processes",
+      "recommendation": "CONFIGURE (optional)"
+    }
+  },
+
+  "recommended_setup": {
+    "step_1": "SessionStart hook (ALREADY CONFIGURED)",
+    "step_2": "Apply Claude Code capsule from EvoMap",
+    "step_3": "Enable /remote-control integration",
+    "step_4": "Test auto-restart on session close/reopen"
+  },
+
+  "expected_behavior": {
+    "training_continues": "Even if Claude Code closes, training runs in background",
+    "processes_persist": "All monitors keep running",
+    "auto_recovery": "Session restart auto-restarts evolver",
+    "remote_control": "Commands work from anywhere via /remote-control",
+    "no_data_loss": "All checkpoints, logs saved"
+  },
+
+  "commands_for_remote_control": {
+    "check_status": "/remote-control status",
+    "view_progress": "/remote-control progress",
+    "start_training": "/remote-control start",
+    "stop_training": "/remote-control stop",
+    "view_logs": "/remote-control logs",
+    "run_eval": "/remote-control eval"
+  },
+
+  "to_activate": {
+    "step_1": "Claude Code capsule already discovered by Auto-Discovery",
+    "step_2": "Will auto-apply when improvement threshold met",
+    "step_3": "Or manually: evolver apply-capsule 'claude-code-auto-restart'",
+    "current_status": "READY - Just let Auto-Discovery apply it"
+  }
+}

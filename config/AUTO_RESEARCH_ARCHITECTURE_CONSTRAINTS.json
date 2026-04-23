@@ -1,0 +1,197 @@
+{
+  "project": "mulmodel_ext",
+  "student_model": "KDA (Kimi Delta Attention)",
+  "teacher_model": "Qwen3.5-0.8B-Claude-4.6-Opus",
+  "constraint_type": "architecture_protection",
+  "purpose": "Define what Auto-Research can/cannot change",
+
+  "PROTECTED_COMPONENTS": {
+    "description": "These components MUST NOT be modified by Auto-Research",
+
+    "model_architecture": {
+      "type": "OpenMythos with Kimi Linear Attention",
+      "protected": true,
+      "components": {
+        "prelude_P": {
+          "name": "Prelude P - Standard Transformer Layers",
+          "runs": "once at start",
+          "protected": true,
+          "reason": "Core foundation of model"
+        },
+        "recurrent_block_R": {
+          "name": "Recurrent Block R - Looped Transformer",
+          "loops": "T times with hidden state h",
+          "protected": true,
+          "reason": "Core recurrent logic"
+        },
+        "coda_C": {
+          "name": "Coda C - Standard Transformer Layers",
+          "runs": "once at end",
+          "protected": true,
+          "reason": "Core output generation"
+        }
+      }
+    },
+
+    "attention_mechanism": {
+      "type": "Kimi Linear Attention",
+      "protected": true,
+      "reason": "Core differentiation of KDA model",
+      "details": "Linear complexity attention instead of quadratic"
+    },
+
+    "attention_residual": {
+      "type": "Residual connections in attention",
+      "protected": true,
+      "reason": "Essential for gradient flow and training stability"
+    },
+
+    "distillation": {
+      "type": "Knowledge distillation from teacher",
+      "teacher": "Qwen3.5-0.8B-Claude-4.6-Opus",
+      "protected": true,
+      "reason": "Core training objective - learning from teacher",
+      "what_monitor_checks": [
+        "Student outputs vs teacher outputs",
+        "Divergence detection (alert if > 40%)",
+        "Knowledge transfer quality"
+      ]
+    }
+  },
+
+  "ALLOWED_OPTIMIZATIONS": {
+    "description": "What Auto-Research CAN modify",
+
+    "training_hyperparameters": {
+      "learning_rate": {
+        "allowed": true,
+        "current": 2e-4,
+        "search_range": [1e-5, 5e-4],
+        "reason": "Affects convergence speed"
+      },
+      "dropout_rate": {
+        "allowed": true,
+        "current": 0.1,
+        "search_range": [0.1, 0.5],
+        "reason": "Regularization to prevent overfitting"
+      },
+      "weight_decay": {
+        "allowed": true,
+        "current": 0.01,
+        "search_range": [0.0, 0.1],
+        "reason": "L2 regularization"
+      },
+      "gradient_clipping": {
+        "allowed": true,
+        "current": 1.0,
+        "search_range": [0.5, 2.0],
+        "reason": "Prevents gradient explosion"
+      }
+    },
+
+    "data_processing": {
+      "data_augmentation": {
+        "allowed": true,
+        "options": [
+          "problem_paraphrasing",
+          "variable_name_shuffling",
+          "code_formatting_variation"
+        ],
+        "reason": "Prevents memorization without changing architecture"
+      },
+      "batch_size": {
+        "allowed": true,
+        "current": 1,
+        "search_range": [1, 4],
+        "reason": "Memory/learning trade-off"
+      }
+    },
+
+    "loss_function": {
+      "allowed": true,
+      "current": "distillation_loss + correctness_loss",
+      "options": [
+        "kl_divergence_weight",
+        "correctness_weight",
+        "code_structure_weight"
+      ],
+      "constraints": "Must keep distillation component active"
+    },
+
+    "regularization_capsules": {
+      "allowed": true,
+      "examples": [
+        "Dropout Regularization Strategy",
+        "Weight Decay Optimization",
+        "Mixed Precision Training",
+        "Gradient Accumulation Optimizer"
+      ],
+      "reason": "Non-architectural improvements"
+    }
+  },
+
+  "AUTO_RESEARCH_RULES": {
+    "rule_1": {
+      "name": "Never modify OpenMythos architecture",
+      "condition": "If any capsule tries to change Prelude/Recurrent/Coda",
+      "action": "REJECT capsule, log warning"
+    },
+    "rule_2": {
+      "name": "Never remove Kimi Linear Attention",
+      "condition": "If any capsule replaces attention mechanism",
+      "action": "REJECT capsule, revert to original"
+    },
+    "rule_3": {
+      "name": "Never disable distillation",
+      "condition": "If loss function loses distillation component",
+      "action": "REJECT capsule, keep distillation active"
+    },
+    "rule_4": {
+      "name": "Keep attention residuals",
+      "condition": "If any capsule removes residual connections in attention",
+      "action": "REJECT capsule, restore residuals"
+    },
+    "rule_5": {
+      "name": "Only optimize hyperparameters and data",
+      "allowed_scope": [
+        "Learning rate tuning",
+        "Dropout/weight decay adjustment",
+        "Data augmentation strategies",
+        "Loss weight rebalancing",
+        "Batch size experimentation"
+      ]
+    }
+  },
+
+  "DISTILLATION_CAPSULE_SETTINGS": {
+    "capsule_name": "Distillation Quality Monitor",
+    "rating": "0.95/1.0",
+    "status": "ACTIVE",
+    "what_it_monitors": {
+      "student_output_quality": "Does student generate similar quality to teacher?",
+      "divergence_detection": "Is student deviating from teacher?",
+      "knowledge_transfer": "Is student learning correctly from teacher?"
+    },
+    "check_interval_steps": 500,
+    "divergence_threshold": 0.40,
+    "alert_if_divergence_exceeds": "40%",
+    "auto_action_if_severe": "Reduce learning rate or apply regularization",
+    "comparison_metrics": [
+      "Output similarity (cosine distance)",
+      "Solution correctness rate",
+      "Code structure quality",
+      "Problem-solving approach alignment"
+    ]
+  },
+
+  "SUMMARY": {
+    "model_protected": "Yes - OpenMythos + Kimi Linear Attention untouchable",
+    "distillation_protected": "Yes - Learning from teacher stays active",
+    "attention_protected": "Yes - Linear attention + residuals fixed",
+    "optimization_scope": "Hyperparameters, data, regularization only",
+    "auto_research_freedom": "Can optimize ~20 hyperparameters without breaking core",
+    "safety_level": "HIGH - Core architecture protected with constraints"
+  },
+
+  "activated": "2026-04-23T16:50:00Z"
+}

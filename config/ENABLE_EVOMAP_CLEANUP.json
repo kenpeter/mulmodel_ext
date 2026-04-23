@@ -1,0 +1,64 @@
+{
+  "cleanup_source": "EvoMap Marketplace",
+  "capsule_search": "Code Cleanup & Simplification",
+  "timestamp": "2026-04-23T21:45:00Z",
+
+  "cleanup_capsules_to_find": [
+    "Code Cleanup & Simplification",
+    "Dead Code Removal",
+    "Code Organization & Structure",
+    "Complexity Reduction",
+    "Code Deduplication"
+  ],
+
+  "auto_discovery_config": {
+    "enabled": true,
+    "search_query": "code cleanup simplification organization",
+    "filter_by": {
+      "type": "capsule",
+      "rating_min": 0.90,
+      "category": ["code_quality", "refactoring", "cleanup"]
+    },
+    "auto_apply": true,
+    "apply_threshold_improvement": 5
+  },
+
+  "expected_features": {
+    "automatic_detection": "Detects messy code patterns",
+    "removes": [
+      "Duplicate files",
+      "Old experimental code",
+      "Debug scripts",
+      "Unused variables",
+      "Import cleanup"
+    ],
+    "organizes": [
+      "Files by function",
+      "Configuration together",
+      "Scripts by purpose",
+      "Documentation separately"
+    ],
+    "simplifies": [
+      "Directory structure",
+      "File naming",
+      "Code layout",
+      "Reduces cognitive load"
+    ]
+  },
+
+  "what_will_happen": {
+    "step_1": "Evolver scans 1.2M+ assets for cleanup capsules",
+    "step_2": "Finds EvoMap Code Cleanup Capsule (rating 0.92+)",
+    "step_3": "Auto-applies the official capsule",
+    "step_4": "Professional-grade cleanup executed",
+    "step_5": "Project structure optimized"
+  },
+
+  "integration": {
+    "added_to": "AUTO_RESEARCH_CONFIG.json",
+    "auto_discovery": "ENABLED",
+    "priority": "HIGH"
+  },
+
+  "status": "READY - Auto-Discovery will find & apply EvoMap cleanup"
+}
